@@ -1,9 +1,6 @@
 FROM registry.access.redhat.com/ubi9:9.4
 
 ARG BUILDARCH
-ARG TARGETPLATFORM
-
-RUN echo ${TARGETPLATFORM}
 
 # Copy Client Codebase
 
