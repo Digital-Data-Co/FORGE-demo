@@ -5,6 +5,10 @@ ARG TARGETPLATFORM
 
 RUN echo ${TARGETPLATFORM}
 
+# Copy Client Codebase
+
+COPY Navy-VRAM /client/
+
 
 COPY scripts /dsop-fix/
 COPY banner/issue /etc/
@@ -19,6 +23,9 @@ RUN dnf install -y git
 RUN dnf install -y wget
 RUN dnf install -y yum-utils
 RUN dnf install -y python3-pip
+RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc
+RUN dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+RUN dnf install -y azure-cli
 RUN yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 RUN dnf install -y terraform
 RUN python3 -m pip install --upgrade -r /etc/semaphore/requirements.txt 
