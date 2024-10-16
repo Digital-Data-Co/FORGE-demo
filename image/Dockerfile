@@ -4,9 +4,7 @@ ARG BUILDARCH
 
 # Copy Client Codebase
 
-COPY Navy-VRAM /client/
-
-
+COPY client /client/
 COPY scripts /dsop-fix/
 COPY banner/issue /etc/
 COPY certs/* /etc/pki/ca-trust/source/anchors/
@@ -17,6 +15,7 @@ COPY semaphore/* /etc/semaphore/
 
 # Install and configure SemaphoreUI, Ansible, Terraform
 RUN dnf install -y git
+RUN dnf install -y sshpass
 RUN dnf install -y wget
 RUN dnf install -y yum-utils
 RUN dnf install -y python3-pip
