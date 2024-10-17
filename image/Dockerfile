@@ -10,9 +10,6 @@ COPY banner/issue /etc/
 COPY certs/* /etc/pki/ca-trust/source/anchors/
 COPY semaphore/* /etc/semaphore/
 
-# Copy the Codebase to the image
-#COPY github /github
-
 # Install and configure SemaphoreUI, Ansible, Terraform
 RUN dnf install -y git
 RUN dnf install -y sshpass

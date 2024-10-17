@@ -1,0 +1,191 @@
+---
+- hosts: masters
+  become: yes
+  vars:
+   lb_addr: "10.0.0.42"
+   master_ip: "10.0.0.41"
+  tasks:
+    - name: Enable 2nd IP address config file #set the LB IP assigned to k8s-ha-m-3 IP #2
+      ansible.builtin.shell: 
+        printf 'DEVICE=eth0:0\n
+        BOOTPROTO=static\n
+        ONBOOT=yes\n
+        IPADDR={{ lb_addr }}\n
+        NETMASK=255.255.255.0' > /etc/sysconfig/network-scripts/ifcfg-eth0:0
+      tags:
+        - dev
+        - infra
+
+    - name: Restart Network Services
+      ansible.builtin.shell:
+        cmd: systemctl restart NetworkManager.service
+      tags:
+        - dev
+        - infra
+
+    - name: Copy Set Firewall Ports file with owner and permissions
+      ansible.builtin.copy:
+        src: ./setfwports.sh
+        dest: /home/dd/setfwports.sh
+
+    - name: Execute setting Firewall ports 
+      ansible.builtin.shell:
+        cmd: bash /home/dd/setfwports.sh
+
+    - name: Enable kubelet
+      ansible.builtin.shell:
+        cmd: systemctl --now enable kubelet.service
+
+    - name: initialize the cluster 
+      ansible.builtin.shell: 
+       cmd: kubeadm init --control-plane-endpoint={{ lb_addr }}:6443 --upload-certs --apiserver-advertise-address={{ master_ip }} --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///run/containerd/containerd.sock
+
+    - name: create user .kube directory
+      ansible.builtin.shell: |
+        mkdir -p /home/dd/.kube
+        cp -i /etc/kubernetes/admin.conf /home/dd/.kube/config
+        chown -R dd:dd /home/dd/.kube
+
+    - name: create root .kube directory
+      ansible.builtin.shell: |
+        mkdir -p ~/.kube
+        cp -i /etc/kubernetes/admin.conf ~/.kube/config
+
+    - name: Download Project Calico v3.28.1
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/calico.yaml
+        dest: ~/calico.yaml
+
+    - name: Enable VXLAN, Disable IPtoIP # Azure Issue - Change to VXLAN in calico.yml
+      ansible.builtin.shell: |
+        sed -i '/name: CALICO_IPV4POOL_IPIP/{n;s/value: "Always"/value: "Never"/}' ~/calico.yaml
+        sed -i '/name: CALICO_IPV4POOL_VXLAN/{n;s/value: "Never"/value: "Always"/}' ~/calico.yaml
+        
+    - name: install Pod network 
+      ansible.builtin.shell:
+        cmd: kubectl apply -f ~/calico.yaml
+
+    - name: Create the command for joining the other master nodes
+      ansible.builtin.shell: 
+         kubeadm token create --print-join-command --certificate-key $(kubeadm init phase upload-certs --upload-certs |  awk '{for (i=1;i<3;i++) {getline}; print $0}')
+      register: kubernetes_join_command
+
+    - debug: 
+        msg: "{{ kubernetes_join_command.stdout }}"
+
+    - name: Copy join command to local file.
+      local_action: 
+        copy content={{ kubernetes_join_command.stdout }}
+        dest="/tmp/kubernetes_join_command" 
+        mode=0777
+
+    # Sleep 120 seconds waiting on CNI installation.
+    - name: Pause for 2 minutes for CNI install
+      ansible.builtin.pause:
+        minutes: 2
+
+    - name: Add Calico to FAPolicy Whitelist and reload
+      ansible.builtin.shell: | 
+        fapolicyd-cli --file add /opt/cni/bin/calico
+        fapolicyd-cli --file add /opt/cni/bin/calico-ipam
+        fapolicyd-cli --update
+
+    # Install Linkerd
+    #- name: Install Linkerd
+    #  ansible.builtin.shell: |
+    #    curl --proto '=https' --tlsv1.2 -sSfL https://run.linkerd.io/install-edge | sh
+    #    export PATH=$HOME/.linkerd2/bin:$PATH
+      
+    #- name: Deploy Linkerd CRDs & Linkerd
+    #  ansible.builtin.shell: |
+    #    linkerd install --crds | kubectl apply -f -
+    #    linkerd install | kubectl apply -f -
+
+# Install Cert Manager
+
+# Create /etc/kubernetes/audit/audit-policy.yaml
+
+# Enable Pod Security auditing using the baseline enforcement by creating the below file
+
+
+- hosts: ha_masters
+  become: yes
+  tasks:
+    - name: Copy Set Firewall Ports file with owner and permissions
+      ansible.builtin.copy:
+        src: ./setfwports.sh
+        dest: /home/dd/setfwports.sh
+ 
+    - name: Execute setting Firewall ports and systemctl
+      ansible.builtin.shell:
+        cmd: source /home/dd/setfwports.sh
+
+    - name: Enable kubelet
+      ansible.builtin.shell:
+        cmd: systemctl --now enable kubelet.service
+
+    - name: Copy join command from Ansiblehost to the CP nodes.
+      become: yes
+      copy:
+        src: /tmp/kubernetes_join_command
+        dest: /tmp/kubernetes_join_command
+        mode: 0777
+
+    - name: Join the HA Masters nodes to the cluster as CP nodes
+      become: yes
+      ansible.builtin.shell:
+        cmd: sh /tmp/kubernetes_join_command
+
+    # Sleep 120 seconds waiting on CNI installation.
+    - name: Pause for 2 minutes waiting on CNI install
+      ansible.builtin.pause:
+        minutes: 2
+
+    - name: Add Calico to FAPolicy Whitelist and reload
+      ansible.builtin.shell: | 
+        fapolicyd-cli --file add /opt/cni/bin/calico
+        fapolicyd-cli --file add /opt/cni/bin/calico-ipam
+        fapolicyd-cli --update
+
+- hosts: workers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+  - name: Copy Set Firewall Ports file with owner and permissions
+    ansible.builtin.copy:
+      src: ./setfwports.sh
+      dest: /home/dd/setfwports.sh
+ 
+  - name: Execute setting Firewall ports and systemctl
+    ansible.builtin.shell:
+      cmd: source /home/dd/setfwports.sh
+
+  - name: Copy join command from Ansiblehost to the worker nodes.
+    become: yes
+    copy:
+      src: /tmp/kubernetes_join_command
+      dest: /tmp/kubernetes_join_command
+      mode: 0777
+
+  #- name: Fix to the join command #Remove --control-plane
+  #  ansible.builtin.shell:
+  #    sed -i 's/--control-plane//g' /tmp/kubernetes_join_command
+
+
+  - name: Join the Worker nodes to the cluster.
+    become: yes
+    command: sh /tmp/kubernetes_join_command
+    register: joined_or_not
+
+  # Sleep 120 seconds waiting on CNI installation.
+  - name: Pause for 2 minutes to build app cache
+    ansible.builtin.pause:
+      minutes: 2
+
+  - name: Add Calico to FAPolicy Whitelist and reload
+    become: yes
+    ansible.builtin.shell: | 
+      fapolicyd-cli --file add /opt/cni/bin/calico
+      fapolicyd-cli --file add /opt/cni/bin/calico-ipam
+      fapolicyd-cli --update

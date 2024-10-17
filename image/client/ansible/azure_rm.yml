@@ -1,0 +1,8 @@
+- plugin: azure.azcollection.azure_rm
+auth_source: cli
+include_vm_resource_groups:
+  - images
+keyed_groups:
+  - key: tags
+    prefix: tag
+
