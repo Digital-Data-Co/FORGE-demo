@@ -35,35 +35,67 @@
     - name: Enable kubelet
       ansible.builtin.shell:
         cmd: systemctl --now enable kubelet.service
+      tags:
+        - dev
+        - infra
+
+    - name: Import images into ContainerD
+      ansible.builtin.shell: |
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-kube-apiserver/v1.30.5.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-kube-controller-manager/v1.30.5.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-kube-scheduler/v1.30.5.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-kube-proxy/v1.30.5.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-pause/3.9.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-coredns/1.7.0.tar
+        ctr -n=k8s.io images import ~/airgap/images/k8s.gcr.io-etcd/3.5.16-0.tar
+        ctr -n=k8s.io images import ~/airgap/images/release-v3.28.2/images/calico-cni.tar
+        ctr -n=k8s.io images import ~/airgap/images/release-v3.28.2/images/calico-node.tar
+        ctr -n=k8s.io images import ~/airgap/images/release-v3.28.2/images/calico-kube-controllers.tar
+      tags:
+        - dev
+        - infra
 
     - name: initialize the cluster 
       ansible.builtin.shell: 
        cmd: kubeadm init --control-plane-endpoint={{ lb_addr }}:6443 --upload-certs --apiserver-advertise-address={{ master_ip }} --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///run/containerd/containerd.sock
+      tags:
+        - dev
+        - infra
 
     - name: create user .kube directory
       ansible.builtin.shell: |
         mkdir -p /home/dd/.kube
         cp -i /etc/kubernetes/admin.conf /home/dd/.kube/config
         chown -R dd:dd /home/dd/.kube
+      tags:
+        - dev
+        - infra
 
     - name: create root .kube directory
       ansible.builtin.shell: |
         mkdir -p ~/.kube
         cp -i /etc/kubernetes/admin.conf ~/.kube/config
+      tags:
+        - dev
+        - infra
 
-    - name: Download Project Calico v3.28.1
-      ansible.builtin.get_url:
-        url: https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/calico.yaml
-        dest: ~/calico.yaml
-
-    - name: Enable VXLAN, Disable IPtoIP # Azure Issue - Change to VXLAN in calico.yml
+    - name: Install Calico binaries 
       ansible.builtin.shell: |
-        sed -i '/name: CALICO_IPV4POOL_IPIP/{n;s/value: "Always"/value: "Never"/}' ~/calico.yaml
-        sed -i '/name: CALICO_IPV4POOL_VXLAN/{n;s/value: "Never"/value: "Always"/}' ~/calico.yaml
-        
-    - name: install Pod network 
-      ansible.builtin.shell:
-        cmd: kubectl apply -f ~/calico.yaml
+        cp ~/airgap/images/release-v3.28.2/bin/calico /opt/cni/bin
+        chmod 755 /opt/cni/bin/calico
+        cp ~/airgap/images/release-v3.28.2/bin/calico-ipam /opt/cni/bin
+        chmod 755 /opt/cni/bin/calico-ipam
+      tags:
+        - dev
+        - infra
+
+    - name: Install Calico v3.28.2
+      ansible.builtin.shell: |
+        kubectl create -f ~/airgap/images/release-v3.28.2/manifests/calico-vxlan.yaml
+        kubectl create -f ~/airgap/images/release-v3.28.2/manifests/custom-resources.yaml
+      tags:
+        - dev
+        - infra
 
     - name: Create the command for joining the other master nodes
       ansible.builtin.shell: 
@@ -89,23 +121,6 @@
         fapolicyd-cli --file add /opt/cni/bin/calico
         fapolicyd-cli --file add /opt/cni/bin/calico-ipam
         fapolicyd-cli --update
-
-    # Install Linkerd
-    #- name: Install Linkerd
-    #  ansible.builtin.shell: |
-    #    curl --proto '=https' --tlsv1.2 -sSfL https://run.linkerd.io/install-edge | sh
-    #    export PATH=$HOME/.linkerd2/bin:$PATH
-      
-    #- name: Deploy Linkerd CRDs & Linkerd
-    #  ansible.builtin.shell: |
-    #    linkerd install --crds | kubectl apply -f -
-    #    linkerd install | kubectl apply -f -
-
-# Install Cert Manager
-
-# Create /etc/kubernetes/audit/audit-policy.yaml
-
-# Enable Pod Security auditing using the baseline enforcement by creating the below file
 
 
 - hosts: ha_masters
