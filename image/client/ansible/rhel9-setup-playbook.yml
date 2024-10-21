@@ -218,10 +218,9 @@
       - baseimage
       - k8s
 
-  - name: Containerd Setup
+  - name: Containerd Setup #sed -i 's/3.8/3.9/g' /etc/containerd/config.toml #nolongernecessary
     ansible.builtin.shell: | 
       containerd config default | tee /etc/containerd/config.toml
-      sed -i 's/3.8/3.9/g' /etc/containerd/config.toml
       sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml  
       service containerd restart
     tags:
