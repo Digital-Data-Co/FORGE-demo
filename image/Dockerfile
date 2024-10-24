@@ -25,8 +25,8 @@ RUN dnf install -y azure-cli
 RUN yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 RUN dnf install -y terraform
 RUN python3 -m pip install --upgrade -r /etc/semaphore/requirements.txt 
-RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/${VERSION}/semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz
-RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH.}tar.gz -C /usr/local/bin/
+RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v${VERSION}/semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz
+RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin/
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
 
