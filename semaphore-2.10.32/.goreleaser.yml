@@ -1,0 +1,73 @@
+dist: bin
+
+before:
+  hooks:
+    - task build:fe
+
+builds:
+  - binary: semaphore
+    env:
+      - CGO_ENABLED=0
+    main: ./cli/main.go
+    ldflags: -s -w -X github.com/ansible-semaphore/semaphore/util.Ver={{ .Version }} -X github.com/ansible-semaphore/semaphore/util.Commit={{ .ShortCommit }} -X github.com/ansible-semaphore/semaphore/util.Date={{ .Timestamp }}
+    tags:
+      - netgo
+    goos:
+      - windows
+      - darwin
+      - linux
+      - freebsd
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+      - ppc64le
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: ppc64le
+      - goos: windows
+        goarch: ppc64le
+
+archives:
+  - files:
+      - LICENSE
+    format_overrides:
+      - goos: windows
+        format: zip
+
+signs:
+  -
+    artifacts: checksum
+    args: ["-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
+
+snapshot:
+  name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
+
+nfpms:
+  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    description: Open Source alternative to Ansible Tower
+    homepage: https://github.com/semaphoreui/semaphore
+    vendor: Semaphore UI
+    maintainer: Semaphore UI <support@semui.co>
+    license: MIT
+
+    formats:
+      - deb
+      - rpm
+
+    dependencies:
+      - git
+
+    suggests:
+      - ansible
+
+    bindir: /usr/bin
+
+release:
+  draft: true
+  name_template: "{{.Tag}}"
