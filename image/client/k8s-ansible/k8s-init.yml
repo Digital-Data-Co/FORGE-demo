@@ -97,6 +97,7 @@
         - dev
         - infra
 
+
     - name: Create the command for joining the other master nodes
       ansible.builtin.shell: 
          kubeadm token create --print-join-command --certificate-key $(kubeadm init phase upload-certs --upload-certs |  awk '{for (i=1;i<3;i++) {getline}; print $0}')

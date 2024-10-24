@@ -1,0 +1,65 @@
+- hosts: all
+  become: true
+  become_user: root 
+  tasks:
+
+  - name: Run OpenSCAP Evaluation Report and Remediation Creation # Still not as good as running the direct "remediation"
+    ansible.builtin.shell: 
+      cmd: oscap xccdf generate fix --fix-type bash --fetch-remote-resources --output ~/remediation-script.sh --profile xccdf_org.ssgproject.content_profile_stig --report ~/oscap_report_post.html /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - stig
+
+  - name: V-258046 - RHEL 9 system accounts must not have an interactive login shell.
+    ansible.builtin.shell:
+      cmd:  usermod --shell /sbin/nologin "{{ item }}"
+    loop:
+      - shutdown
+      - libstoragemgmt
+      - sync
+      - sshd
+      - setroubleshoot
+      - halt
+      - clevis 
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - redhat
+
+  - name: Enable Faillock #V-258055, V-258056, V-258057, V-258060, V-258070
+    ansible.builtin.copy:
+      src: ./faillock.conf
+      dest: /etc/security/faillock.conf
+      owner: root
+      group: root
+      mode: '0644'
+    tags:
+      - dev
+      - baseimage
+      - stig
+      - redhat
+
+  - name: Execute OpenSCAP Remediation fix # Leaves 9 failures
+    ansible.builtin.shell:
+      cmd: bash ~/remediation-script.sh
+    tags:
+      - dev
+      - baseimage
+      - redhat
+      - stig
+
+  - name: Finale Reboot
+    ansible.builtin.reboot:
+      reboot_timeout: 3600
+    tags:
+      - dev
+      - baseimage
+
+
+
+         
+
+

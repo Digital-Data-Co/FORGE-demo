@@ -1,7 +1,5 @@
 FROM registry.access.redhat.com/ubi9:9.4
 
-ARG BUILDARCH
-
 # Copy Client Codebase
 
 COPY client /client/
@@ -22,8 +20,8 @@ RUN dnf install -y azure-cli
 RUN yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 RUN dnf install -y terraform
 RUN python3 -m pip install --upgrade -r /etc/semaphore/requirements.txt 
-RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v2.10.22/semaphore_2.10.22_linux_${BUILDARCH}.tar.gz
-RUN tar -xzvf ./semaphore_2.10.22_linux_${BUILDARCH}.tar.gz -C /usr/local/bin/
+RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v2.10.32/semaphore_2.10.32_linux_amd64.tar.gz
+RUN tar -xzvf ./semaphore_2.10.32_linux_amd64.tar.gz -C /usr/local/bin/
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
 

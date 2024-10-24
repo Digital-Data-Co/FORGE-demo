@@ -3,172 +3,6 @@
   become_user: root 
   tasks:
 
-  - name: Copy containerd module file with owner and permissions
-    ansible.builtin.copy:
-      src: ./containerd.conf
-      dest: /etc/modules-load.d/containerd.conf
-      owner: root
-      group: root
-      mode: '0644'
-    tags:
-      - dev
-      - baseimage
-      - k8s
-
-  - name: Copy POST STIG script
-    ansible.builtin.copy:
-      src: ./stig_fixes_playbook.sh
-      dest: ~/stig_fixes_playbook.sh
-      owner: dd
-      group: dd
-      mode: '0644'
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Copy STIG Partitions file
-    ansible.builtin.copy:
-      src: ./stig_partitions.sh
-      dest: ~/stig_partitions.sh
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Copy DATT RPM
-    ansible.builtin.copy:
-      src: ./CM308935_datt-1.6.26.x86_64.rpm
-      dest: ~/CM308935_datt-1.6.26.x86_64.rpm
-    tags:
-      - dev
-      - baseimage
-      - DoD
-
-  - name: Enable FIPS
-    ansible.builtin.shell:
-      cmd:  fips-mode-setup --enable
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Execute STIG Partitions
-    ansible.builtin.shell:
-      cmd:  bash ~/stig_partitions.sh
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Reboot a slow machine that might have lots of updates to apply
-    ansible.builtin.reboot:
-      reboot_timeout: 3600
-    tags:
-      - dev
-      - baseimage
-
-  - name: Auditd Service Prep
-    ansible.builtin.shell: |
-      mkdir -p /var/log/audit
-      echo "/dev/mapper/rootvg-var--log--audit--lv /var/log/audit   xfs  defaults,nodev,nosuid,noexec        0 0" |  tee -a /etc/fstab
-      mount /dev/mapper/rootvg-var--log--audit--lv /var/log/audit
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Resetup audit service
-    ansible.builtin.shell: |
-       chmod 700 /var/log/audit
-       chcon -t auditd_log_t /var/log/audit
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Enable and Start auditd service
-    ansible.builtin.shell:
-      service auditd restart
-    tags:
-      - dev
-      - baseimage
-      - stig
-
-  - name: Register system with Red Hat #To be updated to DoD Satellite Server
-    ansible.builtin.shell:  subscription-manager register --username cdixon@digitaldata.co --password zsA6ys*GVhQyKHxS4kB@weNAJmM@Z8yENasxoGruXK#^E#bmN^#tJY^J%FATQHa --auto-attach --force
-    tags:
-      - dev
-      - baseimage
-      - redhat
-
-  - name: Add Kubernetes Repo
-    yum_repository:
-     name: Kubernetes
-     description: Kubernetes
-     baseurl: https://pkgs.k8s.io/core:/stable:/v1.30/rpm
-     enabled: yes
-     gpgcheck: yes
-     gpgkey: https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
-    tags:
-      - dev
-      - baseimage
-      - k8s
-
-  - name: Add Docker Repo
-    ansible.builtin.shell:
-      cmd:  dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
-    tags:
-      - dev
-      - baseimage
-      - k8s
-
-  - name: Red Hat set Release Version
-    ansible.builtin.shell:
-      cmd:  subscription-manager release --set=9.4
-    tags:
-      - dev
-      - baseimage
-      - redhat
-
-  - name: Repo Refresh 
-    ansible.builtin.shell:
-      cmd:  dnf upgrade --refresh -y
-    tags:
-      - dev
-      - baseimage
-      - redhat
-
-  - name: Ensure system is up to date
-    dnf:
-      update_cache: true
-      name: "*"
-      state: latest
-    tags:
-      - dev
-      - baseimage
-      - redhat
-
-  - name: Copy Air Gap directory and contents to Base Image
-    ansible.builtin.copy:
-      src: ./airgap
-      dest: /datadrive/
-      owner: root
-      group: root
-      mode: '0644'
-    tags:
-      - dev
-      - baseimage
-      - k8s
-
-  - name: AirGap RPM install
-    ansible.builtin.shell:
-      cmd: dnf install -y /datadrive/airgap/rpms/*
-    tags:
-      - dev
-      - baseimage
-      - redhat
-
   - name: Create SCC directory
     ansible.builtin.shell:
       cmd:  mkdir -p /opt/scc
@@ -218,9 +52,10 @@
       - baseimage
       - k8s
 
-  - name: Containerd Setup #sed -i 's/3.8/3.9/g' /etc/containerd/config.toml #nolongernecessary
+  - name: Containerd Setup
     ansible.builtin.shell: | 
       containerd config default | tee /etc/containerd/config.toml
+      sed -i 's/3.8/3.9/g' /etc/containerd/config.toml
       sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml  
       service containerd restart
     tags:
@@ -323,15 +158,6 @@
       - stig
       - redhat
 
-  - name: Execute STIG Fixes script
-    ansible.builtin.shell:
-      cmd: bash ~/./stig_fixes_playbook.sh
-    tags:
-      - dev
-      - baseimage
-      - redhat
-      - stig
-
   - name: Execute OpenSCAP Remediation fix # Leaves 9 failures
     ansible.builtin.shell:
       cmd: bash ~/remediation-script.sh
@@ -351,4 +177,5 @@
 
 
          
+
 
