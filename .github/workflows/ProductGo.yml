@@ -3,7 +3,6 @@ name: Build, Package, and Release SemaphoreUI
 on:
   push:
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,13 +17,13 @@ jobs:
           node-version: '16'  # Adjust version if necessary
 
       - name: Install dependencies
-        working-directory: Product/semaphore
         run: |
+          cd Product/semaphore
           npm install
 
       - name: Build SemaphoreUI
-        working-directory: Product/semaphore
         run: |
+          cd Product/semaphore
           npm run build
 
       - name: Package as .gz
@@ -38,6 +37,7 @@ jobs:
           path: semaphoreui-package.gz
 
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
