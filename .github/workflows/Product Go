@@ -1,0 +1,50 @@
+name: Build, Package, and Release SemaphoreUI
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'  # Adjust version if necessary
+
+      - name: Install dependencies
+        working-directory: Product/semaphore
+        run: |
+          npm install
+
+      - name: Build SemaphoreUI
+        working-directory: Product/semaphore
+        run: |
+          npm run build
+
+      - name: Package as .gz
+        run: |
+          tar -czf semaphoreui-package.gz -C Product/semaphore/dist .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: semaphoreui-package
+          path: semaphoreui-package.gz
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          release_name: "Release ${{ github.ref_name }}"
+          body: "Automatic release for tag ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          artifacts: "semaphoreui-package.gz"
