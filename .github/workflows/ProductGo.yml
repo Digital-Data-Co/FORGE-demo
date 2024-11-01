@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd Product/semaphore
+          cd ./semaphore
           npm install
 
       - name: Build SemaphoreUI
@@ -28,7 +28,7 @@ jobs:
 
       - name: Package as .gz
         run: |
-          tar -czf semaphoreui-package.gz -C Product/semaphore/dist .
+          tar -czf semaphoreui-package.gz -C ./semaphore/dist .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
