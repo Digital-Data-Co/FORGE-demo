@@ -3,8 +3,11 @@ name: Dev
 'on':
   push:
 
-
 jobs:
+  defaults:
+      run: 
+        working-directory: {my-dir}
+        
   build-local:
     runs-on: ubuntu-latest
 
