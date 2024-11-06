@@ -7,6 +7,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ./semaphore-2.10-.32/
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
