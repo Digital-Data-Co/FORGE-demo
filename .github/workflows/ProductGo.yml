@@ -9,7 +9,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./semaphore-2.10.32/
+        working-directory: /semaphore-2.10.32/
 
     steps:
       - name: Checkout code
@@ -30,7 +30,7 @@ jobs:
 
       - name: Package as .gz
         run: |
-          tar -czf semaphoreui-package.gz -C ./semaphore-2.10.32/dist .
+          tar -czf semaphoreui-package.gz -C semaphore-2.10.32/dist .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
