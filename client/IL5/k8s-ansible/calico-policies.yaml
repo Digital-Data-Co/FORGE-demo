@@ -1,0 +1,84 @@
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  selector: all()
+  types:
+    - Ingress
+    - Egress
+  ingress:
+    - action: Deny, Log
+  egress:
+    - action: Deny
+---
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: default-egress
+spec:
+  selector: all()
+  types:
+    - Egress
+  egress:
+    - action: Allow
+---
+apiVersion: projectcalico.org/v3
+kind: GLobalNetworkPolicy
+metadata:
+  name: allow-ssh-from-ddbuildmachine
+spec:
+  selector: all()  # Apply this policy to all pods in the namespace
+  types:
+    - Ingress
+  ingress:
+    - action: Allow
+      source:
+        nets:
+          - 10.21.0.0/16  # Replace with the actual IP of DDBuildMachine
+      destination:
+        ports:
+          - 22  # Allow SSH
+  egress:
+    - action: Allow  # Allow all egress traffic (or restrict as necessary)
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: restrict-ingress-from-apploadbalancer
+spec:
+  selector: all()  # Apply this policy to all pods in all namespaces
+  types:
+    - Ingress
+  ingress:
+    - action: Allow
+      source:
+        nets:
+          - AppLoadBalancerIP/32  # Replace with the actual IP of AppLoadBalancer
+  egress:
+    - action: Allow  # Allow all egress traffic (or restrict as necessary)
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-k8s-node-communication
+spec:
+  selector: all()  # Apply this policy to all pods in all namespaces
+  types:
+    - Ingress
+    - Egress
+  ingress:
+    - action: Allow
+      source:
+        nets:
+          - 192.168.0.0/16  # Cluster CIDR (adjust if necessary)
+          - 10.21.1.0/24 # Node CIDR (adjust if necessary)
+          - 10.96.0.0/12   # Service-Cluster CIDR
+  egress:
+    - action: Allow
+      destination:
+        nets:
+          - 192.168.0.0/16  # Cluster CIDR (adjust if necessary)
+          - 10.21.1.0/24    # Node CIDR (adjust if necessary)
+          - 10.96.0.0/12   # Service-Cluster CIDR

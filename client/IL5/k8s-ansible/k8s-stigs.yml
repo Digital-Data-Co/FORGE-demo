@@ -1,0 +1,93 @@
+---
+- hosts: masters
+  become: yes
+  tasks:
+
+    - name: k8s audit directory and log file
+      ansible.builtin.shell: |
+        mkdir -p /var/log/kubernetes/audit
+        touch /var/log/kubernetes/audit/audit.log
+
+    - name: k8s admissioncontrolconfig directory
+      ansible.builtin.shell:
+        cmd: mkdir -p /etc/kubernetes/config/
+
+    - name: Copy Audit Policy YAML
+      ansible.builtin.copy:
+        src: ./audit-policy.yaml
+        dest: /etc/kubernetes/audit-policy.yaml
+
+    - name: Copy Admission Control Config YAML
+      ansible.builtin.copy:
+        src: ./admissionControlConfig.yaml
+        dest: /etc/kubernetes/config/admissionControlConfig.yaml
+
+## CAT I
+# V-242386 - The Kubernetes API server must have the insecure port flag disabled. - Implemented in k8s v1.20 https://github.com/kubernetes/kubeadm/issues/2156
+# V-242397 - The Kubernetes kubelet staticPodPath must not enable static pods. - WONTFIX
+
+## CAT II
+#V-242445 - The Kubernetes component etcd must be owned by etcd. - WONTFIX
+
+    - name: CAT II V-242424 - CAT II V-242425
+      ansible.builtin.shell: |
+        echo tlsprivateKeyFile: < >> /var/lib/kubelet/config.yaml
+        echo tlsCertFile: <KEYFILE> >> /var/lib/kubelet/config.yaml
+        - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt - kube-apiserver.yaml
+        - --tls-private-key-file=/etc/kubernetes/pki/apiserver.crt
+        systemctl daemon-reload && systemctl restart kubelet
+
+    - name: CAT I V-242434, CAT II V-245541
+      ansible.builtin.shell: |
+        echo protectKernelDefaults: true >> /var/lib/kubelet/config.yaml
+        echo tlsCipherSuites: [TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384] >> /var/lib/kubelet/config.yaml
+        sed -i 's/streamingConnectionIdleTimeout: 0s/streamingConnectionIdleTimeout: 5m/g' /var/lib/kubelet/config.yaml
+        echo tlsCertFile: /etc/kubertnetes/pki/apiserver.crt  >> /var/lib/kubelet/config.yaml
+        echo tlsPrivateKeyFile: /etc/kubertnetes/pki/apiserver.key  >> /var/lib/kubelet/config.yaml
+        systemctl daemon-reload && systemctl restart kubelet
+
+    - name: CAT II V-242376 - CAT II V-242409 
+      ansible.builtin.shell: |
+        sed -i '/- kube-controller-manager/a\\    - --tls-min-version=VersionTLS12' /etc/kubernetes/manifests/kube-controller-manager.yaml 
+        sed -i '/- kube-controller-manager/a\\    - --profiling=false' /etc/kubernetes/manifests/kube-controller-manager.yaml 
+
+    - name: CAT II V-242377 - The Kubernetes Scheduler must use TLS 1.2, at a minimum, to protect the confidentiality of sensitive data during electronic dissemination.
+      ansible.builtin.shell:
+        cmd: sed -i '/- kube-scheduler/a\\    - --tls-min-version=VersionTLS12' /etc/kubernetes/manifests/kube-scheduler.yaml
+
+    - name: CAT II V-242378 - CAT II V-242465 - CAT II V-242464 - CAT II V-242463 - CAT II V-242462 - CAT II V-242461 - CAT II V-242438 - CAT II V-242418 - CAT II V-242403 - CAT II V-242402
+      ansible.builtin.shell: |
+        sed -i '/- kube-apiserver/a\\    - --tls-min-version=VersionTLS12' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/- kube-apiserver/a\\    - --audit-policy-file=/etc/kubernetes/audit-policy.yaml' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/- kube-apiserver/a\\    - --tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/- kube-apiserver/a\\    - --request-timeout=60s' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumes:/a \  - hostPath:\n      path: /etc/kubernetes/audit-policy.yaml\n      type: File\n    name: audit\n  - hostPath:\n      path: /var/log/kubernetes/audit/audit.log\n      type: File\n    name: audit-log' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumeMounts:/a \ \ \ \ - mountPath: /etc/kubernetes/audit-policy.yaml\n      name: audit\n      readOnly: true\n \ \ \ - mountPath: /var/log/kubernetes/audit/audit.log\n      name: audit-log\n      readOnly: false' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/- kube-apiserver/a\\    - --audit-log-maxsize=500' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/--service-cluster-ip/a\\    - --audit-log-maxbackup=10' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/--service-cluster-ip/a\\    - --audit-log-maxage=30' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/--service-cluster-ip/a\\    - --audit-log-path=/var/log/kubernetes/audit/audit.log' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/- kube-apiserver/a\\    - --admission-control-config-file=/etc/kubernetes/config/admissionControlConfig.yaml' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumes:/a \  - hostPath:\n      path: /etc/kubernetes/config/admissionControlConfig.yaml\n      type: File\n    name: admissioncontrolconfig\n  - hostPath:\n      path: /etc/kubernetes/config/admissionControlConfig.yaml\n      type: File\n    name: admissioncontrolconfig' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumeMounts:/a \ \ \ \ - mountPath: /etc/kubernetes/config/admissionControlConfig.yaml\n      name: admissioncontrolconfig\n      readOnly: true\n \ \ \ - mountPath: /etc/kubernetes/config/admissionControlConfig.yaml\n      name: admissioncontrolconfig\n      readOnly: false' /etc/kubernetes/manifests/kube-apiserver.yaml
+
+    - name: CAT II V-242379 - CAT II V-242380
+      ansible.builtin.shell: |
+        sed -i '/- etcd/a\\    - --auto-tls=false' /etc/kubernetes/manifests/etcd.yaml
+        sed -i '/- etcd/a\\    - --peer-auto-tls=false' /etc/kubernetes/manifests/etcd.yaml
+
+- hosts: workers
+  become: yes
+  tasks:
+  # CAT II - V-242459 - The Kubernetes etcd must have file permissions set to 644 or more restrictive. - WONTFIX - etcd running as a pod. 
+    - name: CAT II - V-242406 - The Kubernetes Kubelet Configuration file must be owned by root.
+      ansible.builtin.shell:
+        cmd: chown root:root /var/lib/kubelet/config.yaml
+
+    #- name: CAT II - V-242393 - Kubernetes Worker Nodes must not have sshd service running.
+    #  ansible.builtin.shell: | 
+    #    systemctl disable sshd
+    #    systemctl stop sshd
+
+        
+
