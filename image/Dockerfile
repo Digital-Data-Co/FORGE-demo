@@ -14,20 +14,19 @@ COPY certs/* /etc/pki/ca-trust/source/anchors/
 COPY semaphore/* /etc/semaphore/
 
 # Install and configure SemaphoreUI, Ansible, Terraform
-RUN yum update -y && \
-    yum install -y \
-    curl \
-    ca-certificates \
-    openssh-server \
-    postfix \
-    logrotate \
-    cronie \
-    git \
-    sshpass \
-    wget \
-    yum-utils \
-    python3-pip \
-    && yum clean all
+RUN yum update -y &&
+RUN dnf install -y curl
+RUN dnf install -y ca-certificates
+RUN dnf install -y openssh-server
+RUN dnf install -y postfix
+RUN dnf install -y logrotate
+RUN dnf install -y cronie
+RUN dnf install -y git
+RUN dnf install -y sshpass
+RUN dnf install -y wget
+RUN dnf install -y yum-utils
+RUN dnf install -y python3-pip
+RUN yum clean all
 
 # Enable and start required services
 RUN systemctl enable crond.service
