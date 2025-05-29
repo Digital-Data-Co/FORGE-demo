@@ -14,7 +14,6 @@ COPY certs/* /etc/pki/ca-trust/source/anchors/
 COPY semaphore/* /etc/semaphore/
 
 # Install and configure SemaphoreUI, Ansible, Terraform
-RUN yum update -y &&
 RUN dnf install -y curl
 RUN dnf install -y ca-certificates
 RUN dnf install -y openssh-server
