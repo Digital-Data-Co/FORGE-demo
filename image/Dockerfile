@@ -14,11 +14,25 @@ COPY certs/* /etc/pki/ca-trust/source/anchors/
 COPY semaphore/* /etc/semaphore/
 
 # Install and configure SemaphoreUI, Ansible, Terraform
-RUN dnf install -y git
-RUN dnf install -y sshpass
-RUN dnf install -y wget
-RUN dnf install -y yum-utils
-RUN dnf install -y python3-pip
+RUN yum update -y && \
+    yum install -y \
+    curl \
+    ca-certificates \
+    openssh-server \
+    postfix \
+    logrotate \
+    cronie \
+    git \
+    sshpass \
+    wget \
+    yum-utils \
+    python3-pip \
+    && yum clean all
+
+# Enable and start required services
+RUN systemctl enable crond.service
+RUN systemctl enable postfix.service
+
 RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc
 RUN dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
 RUN dnf install -y azure-cli
@@ -29,6 +43,18 @@ RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v${VERSIO
 RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin/
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
+# Install GitLab (Community Edition)
+RUN curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash && \
+    yum install -y gitlab-ce
+# Configure GitLab (you can change the external URL and other options here)
+ENV GITLAB_OMNIBUS_CONFIG="external_url 'http://localhost'"
+# Configure GitLab and ensure the services start on container run
+RUN gitlab-ctl reconfigure
+# Expose necessary ports for GitLab (HTTP, HTTPS, and SSH)
+EXPOSE 80 443 22
+# Set the entry point to start GitLab when the container starts
+ENTRYPOINT ["/bin/bash", "-c", "gitlab-ctl reconfigure && gitlab-ctl start && tail -f /dev/null"]
+
 
 # Be careful when adding packages because this will ultimately be built on a licensed RHEL host,
 # which enables full RHEL repositories and could allow for installation of packages that would
@@ -77,4 +103,4 @@ RUN set -eux; \
 ENV container=oci
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-CMD ["/etc/semaphore/semaphore.sh"]
+CMD ["/etc/semaphore/semaphore.sh", "start"]
