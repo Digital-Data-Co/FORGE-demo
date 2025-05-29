@@ -50,8 +50,7 @@ ENV GITLAB_OMNIBUS_CONFIG="external_url 'http://localhost'"
 RUN gitlab-ctl reconfigure
 # Expose necessary ports for GitLab (HTTP, HTTPS, and SSH)
 EXPOSE 80 443 22
-# Set the entry point to start GitLab when the container starts
-ENTRYPOINT ["/bin/bash", "-c", "gitlab-ctl reconfigure && gitlab-ctl start && tail -f /dev/null"]
+
 
 
 # Be careful when adding packages because this will ultimately be built on a licensed RHEL host,
