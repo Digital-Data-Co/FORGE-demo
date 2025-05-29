@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi9:9.4
 
 ARG BUILDARCH
-ARG VERSION="2.10.32"
+ARG VERSION="2.14.12"
 
 ENV BUILDARCH=${BUILDARCH}
 ENV VERSION=${VERSION}
@@ -41,15 +41,6 @@ RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v${VERSIO
 RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin/
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
-# Install GitLab (Community Edition)
-RUN curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash
-
-# Configure GitLab (you can change the external URL and other options here)
-ENV GITLAB_OMNIBUS_CONFIG="external_url 'http://localhost'"
-# Configure GitLab and ensure the services start on container run
-RUN gitlab-ctl reconfigure
-# Expose necessary ports for GitLab (HTTP, HTTPS, and SSH)
-EXPOSE 80 443 22
 
 
 
