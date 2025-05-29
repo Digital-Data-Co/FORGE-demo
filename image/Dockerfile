@@ -42,8 +42,8 @@ RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
 # Install GitLab (Community Edition)
-RUN curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash && \
-    yum install -y gitlab-ce
+RUN curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | bash
+
 # Configure GitLab (you can change the external URL and other options here)
 ENV GITLAB_OMNIBUS_CONFIG="external_url 'http://localhost'"
 # Configure GitLab and ensure the services start on container run
