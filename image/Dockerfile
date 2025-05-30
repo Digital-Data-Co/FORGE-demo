@@ -42,15 +42,6 @@ RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
 
-#Install Latest Stable Harbor Release
-RUN HARBORVERSION=$(curl -s https://github.com/goharbor/harbor/releases/latest/download 2>&1 | grep -Po [0-9]+\.[0-9]+\.[0-9]+)
-RUN curl -s https://api.github.com/repos/goharbor/harbor/releases/latest | grep browser_download_url | grep online | cut -d '"' -f 4 | wget -qi -
-RUN tar xvf harbor-online-installer-v$HARBORVERSION.tgz
-RUN cd harbor
-RUN sed -i "s/reg.mydomain.com/$IPorFQDN/g" harbor.yml
-RUN ./install.sh --with-trivy --with-chartmuseum
-RUN echo -e "Harbor Installation Complete \n\nPlease log out and log in or run the command 'newgrp docker' to use Docker without sudo\n\nLogin to your harbor instance:\n docker login -u admin -p Harbor12345 $(hostname -I|cut -d" " -f 1)"
-
 
 # Be careful when adding packages because this will ultimately be built on a licensed RHEL host,
 # which enables full RHEL repositories and could allow for installation of packages that would
