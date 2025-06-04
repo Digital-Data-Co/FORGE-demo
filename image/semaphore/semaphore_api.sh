@@ -7,7 +7,7 @@ PASSWORD="DigitalData2025!"
 SSH_KEY_ID=1
 
 # Project
-PROJECT_NAME="TestProject"
+PROJECT_NAME="Client"
 
 # Repo
 REPO_NAME="Client"
