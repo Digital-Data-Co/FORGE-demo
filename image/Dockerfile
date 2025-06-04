@@ -5,6 +5,8 @@ ARG VERSION="2.14.12"
 
 ENV BUILDARCH=${BUILDARCH}
 ENV VERSION=${VERSION}
+
+
 # Copy Client Codebase
 
 COPY client /client/
@@ -41,6 +43,7 @@ RUN wget -L https://github.com/semaphoreui/semaphore/releases/download/v${VERSIO
 RUN tar -xzvf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz -C /usr/local/bin/
 RUN /etc/semaphore/semaphore_setup.sh
 RUN rm -rf ./semaphore_${VERSION}_linux_${BUILDARCH}.tar.gz /etc/semaphore/semaphore_setup.sh /etc/semaphore/config.stdin
+
 
 
 # Be careful when adding packages because this will ultimately be built on a licensed RHEL host,
