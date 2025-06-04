@@ -25,9 +25,6 @@
   - name: Create MDE directory
     ansible.builtin.shell:
       cmd: mkdir -p /etc/opt/microsoft/mdatp
-      owner: root
-      group: root
-      mode: '0644'
     register: 
     ignore_errors: true
     tags:
@@ -346,7 +343,7 @@
     register: containerd_svc_prep_result
     ignore_errors: true
     tags:
-      - dev
+      - dev 
       - baseimage
       - k8s
 
@@ -549,11 +546,6 @@
     register: grub_password_result
     ignore_errors: true
 
-  - name: Prevent unrestricted mail relaying
-    ansible.builtin.shell: postconf -e 'smtpd_clinet_restrictions = permit_mynetworks,reject'
-    register: mail_relay_result
-    ignore_errors: true
-
   - name: Set permissions for cron configuration directories
     ansible.builtin.file:
       path: /etc/cron.d/
@@ -587,10 +579,8 @@
     ignore_errors: true
 
   - name: Restrict ptrace usage
-    ansible.builtin.blockinfile:
-      path: /etc/sysctl.d/ptrace.conf
-      block: |
-        kernel.yama.ptrace_scope = 1
+    ansible.builtin.shell:
+      cmd: echo "kernel.yama.ptrace_scope = 1" >> /etc/sysctl.d/ptrace.conf
     register: ptrace_restrict_result
     ignore_errors: true
 
@@ -677,6 +667,11 @@
     register: newaliases_result
     ignore_errors: true
 
+  - name: Prevent unrestricted mail relaying
+    ansible.builtin.shell: postconf -e 'smtpd_clinet_restrictions = permit_mynetworks,reject'
+    register: mail_relay_result
+    ignore_errors: true
+
   - name: Fix vm_overcommit_memory issue
     ansible.builtin.shell: sysctl  -w vm/overcommit_memory=1
     register: overcommit_result
@@ -684,7 +679,7 @@
 
   - name: Fix kernel panic value
     ansible.builtin.shell: sysctl  -w kernel/panic=10
-    register: kernel-panic result
+    register: kernel_panic_result
     ignore_errors: true
 
   - name: Finale Reboot

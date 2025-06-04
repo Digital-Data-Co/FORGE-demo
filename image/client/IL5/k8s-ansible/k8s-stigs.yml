@@ -28,22 +28,15 @@
 
 ## CAT II
 #V-242445 - The Kubernetes component etcd must be owned by etcd. - WONTFIX
+      
 
-    - name: CAT II V-242424 - CAT II V-242425
-      ansible.builtin.shell: |
-        echo tlsprivateKeyFile: < >> /var/lib/kubelet/config.yaml
-        echo tlsCertFile: <KEYFILE> >> /var/lib/kubelet/config.yaml
-        - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt - kube-apiserver.yaml
-        - --tls-private-key-file=/etc/kubernetes/pki/apiserver.crt
-        systemctl daemon-reload && systemctl restart kubelet
-
-    - name: CAT I V-242434, CAT II V-245541
+    - name: CAT I V-242434, CAT II V-245541 CAT II V-242424 - CAT II V-242425
       ansible.builtin.shell: |
         echo protectKernelDefaults: true >> /var/lib/kubelet/config.yaml
         echo tlsCipherSuites: [TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384] >> /var/lib/kubelet/config.yaml
         sed -i 's/streamingConnectionIdleTimeout: 0s/streamingConnectionIdleTimeout: 5m/g' /var/lib/kubelet/config.yaml
-        echo tlsCertFile: /etc/kubertnetes/pki/apiserver.crt  >> /var/lib/kubelet/config.yaml
-        echo tlsPrivateKeyFile: /etc/kubertnetes/pki/apiserver.key  >> /var/lib/kubelet/config.yaml
+        echo tlsCertFile: /etc/kubernetes/pki/apiserver.crt  >> /var/lib/kubelet/config.yaml
+        echo tlsPrivateKeyFile: /etc/kubernetes/pki/apiserver.key  >> /var/lib/kubelet/config.yaml
         systemctl daemon-reload && systemctl restart kubelet
 
     - name: CAT II V-242376 - CAT II V-242409 
@@ -68,8 +61,9 @@
         sed -i '/--service-cluster-ip/a\\    - --audit-log-maxage=30' /etc/kubernetes/manifests/kube-apiserver.yaml
         sed -i '/--service-cluster-ip/a\\    - --audit-log-path=/var/log/kubernetes/audit/audit.log' /etc/kubernetes/manifests/kube-apiserver.yaml
         sed -i '/- kube-apiserver/a\\    - --admission-control-config-file=/etc/kubernetes/config/admissionControlConfig.yaml' /etc/kubernetes/manifests/kube-apiserver.yaml
-        sed -i '/volumes:/a \  - hostPath:\n      path: /etc/kubernetes/config/admissionControlConfig.yaml\n      type: File\n    name: admissioncontrolconfig\n  - hostPath:\n      path: /etc/kubernetes/config/admissionControlConfig.yaml\n      type: File\n    name: admissioncontrolconfig' /etc/kubernetes/manifests/kube-apiserver.yaml
-        sed -i '/volumeMounts:/a \ \ \ \ - mountPath: /etc/kubernetes/config/admissionControlConfig.yaml\n      name: admissioncontrolconfig\n      readOnly: true\n \ \ \ - mountPath: /etc/kubernetes/config/admissionControlConfig.yaml\n      name: admissioncontrolconfig\n      readOnly: false' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumes:/a \  - hostPath:\n      path: /etc/kubernetes/config/admissionControlConfig.yaml\n      type: File\n    name: admissioncontrolconfig' /etc/kubernetes/manifests/kube-apiserver.yaml
+        sed -i '/volumeMounts:/a \ \ \ \ - mountPath: /etc/kubernetes/config/admissionControlConfig.yaml\n      name: admissioncontrolconfig\n      readOnly: true' /etc/kubernetes/manifests/kube-apiserver.yaml
+        systemctl daemon-reload && systemctl restart kubelet
 
     - name: CAT II V-242379 - CAT II V-242380
       ansible.builtin.shell: |

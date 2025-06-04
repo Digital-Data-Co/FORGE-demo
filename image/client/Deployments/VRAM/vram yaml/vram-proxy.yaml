@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vram-proxy
+    labels:
+      app: vram-proxy
+  namespace: vram
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    app: vram-proxy
+    deploymentconfig: vram-proxy
+  strategy:
+    activeDeadlineSeconds: 21600
+    recreateParams:
+      timeoutSeconds: 600
+    type: Recreate
+    spec:
+      containers:
+      - image: artifactory-prod.csa.spawar.navy.mil:8082/score/nginx:1.25.2
+        imagePullPolicy: Never
+        name: vram-proxy
+        ports:
+        - containerPort: 8443
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/nginx/certs
+          name: integ-cert
+          readOnly: true
+        - mountPath: /etc/nginx/conf.d
+          name: nginx-conf-integ
+          readOnly: true
+        - mountPath: /etc/nginx/nginx.conf
+          name: nginx-conf
+          readOnly: true
+          subPath: nginx.conf
+        - mountPath: /data
+          name: proxy-data
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      volumes:
+      - name: integ-cert
+        secret:
+          defaultMode: 420
+          secretName: integ-certs
+      - configMap:
+          defaultMode: 420
+          name: nginx-conf-integ
+        name: nginx-conf-integ
+      - configMap:
+          defaultMode: 420
+          name: nginx-conf
+        name: nginx-conf
+      - name: proxy-data
+        persistentVolumeClaim:
+          claimName: proxy-data

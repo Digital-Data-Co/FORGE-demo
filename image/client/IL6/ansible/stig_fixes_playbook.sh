@@ -11,29 +11,12 @@
 
 # V-257787 - RHEL 9 must require a boot loader superuser password.
  passwd="1qaz2wsx3edc$RFV"
- 
- echo -e "$passwd\n$passwd" | grub2-setpassword | awk '/hash of / {print $NF}' >> /boot/grub2/user.cfg
- grub2-mkconfig -o /boot/grub2/grub.cfg 
-
- # V-257951 - RHEL 9 must be configured to prevent unrestricted mail relaying.
- postconf -e 'smtpd_clinet_restrictions = permit_mynetworks,reject'
-
-# V-257888 - RHEL 9 cron configuration directories must have a mode of 0700 or less permissive.
-chmod -R 0700 /etc/cron.d/
-
-# V-257889 - All RHEL 9 local initialization files must have mode 0740 or less permissive.
-chmod -R 0700 /root
-
-# V-257999 - RHEL 9 SSH server configuration file must have mode 0600 or less permissive.
-chmod -R 0600 /etc/ssh/sshd_config.d
-
-# V-258060 - RHEL 9 must ensure account lockouts persist.
-sed -i 's#/var/run/faillock#/var/log/faillock#g' /etc/security/faillock.conf
+ echo -e "$passwd\n$passwd" | grub2-mkpasswd-pbkdf2 | awk '/hash of / {print $NF}'
 
 # V-257811 - RHEL 9 must restrict usage of ptrace to descendant processes. 
  echo "kernel.yama.ptrace_scope = 1" >> /etc/sysctl.d/ptrace.conf
- sed -i 's/kernel.yama.ptrace_scope = 0/kernel.yama.ptrace_scope = 1/g' /usr/lib/sysctl.d/10-default-yama-scope.conf
- sed -i 's/kernel.yama.ptrace_scope = 0/kernel.yama.ptrace_scope = 1/g' /lib/sysctl.d/10-default-yama-scope.conf
+ echo 's#kernel.yama.ptrace_scope = 0#kernel.yama.ptrace_scope = 1#g' /usr/lib/sysctl.d/10-default-yama-scope.conf
+ echo 's#kernel.yama.ptrace_scope = 0#kernel.yama.ptrace_scope = 1#g' /lib/sysctl.d/10-default-yama-scope.conf
 
 # V-? Enable Authselect
  authselect select sssd with-faillock --force
@@ -54,12 +37,14 @@ sed -i 's#/var/run/faillock#/var/log/faillock#g' /etc/security/faillock.conf
  sed -i 's#password    requisite                                    pam_pwquality.so local_users_only#password    required                                    pam_pwquality.so retry=3 local_users_only#g' /etc/pam.d/password-auth
  sed -i 's#password    requisite                                    pam_pwquality.so local_users_only#password    required                                    pam_pwquality.so retry=3 local_users_only#g' /etc/pam.d/system-auth
 
-# V-258099 - RHEL 9 password-auth must be configured to use a sufficient number of hashing rounds, V-258100 - RHEL 9 system-auth must be configured to use a sufficient number of hashing rounds.
- sed -i 's/use_authtok/use_authtok rounds=100000/g' /etc/pam.d/password-auth
- sed -i 's/use_authtok/use_authtok rounds=100000/g' /etc/pam.d/system-auth
+# V-258099 - RHEL 9 password-auth must be configured to use a sufficient number of hashing rounds.
+ sed -i 's/use_authtok/use_authtok rounds=5000/g' /etc/pam.d/password-auth
+ sed -i 's/use_authtok/use_authtok rounds=5000/g' /etc/pam.d/system-auth
 
 
-# V-257782 - RHEL 9 must enable the hardware random number generator entropy gatherer service. #WONTFIX - Can't be run with FIPS mode enabled.
+# V-257782 - RHEL 9 must enable the hardware random number generator entropy gatherer service. #
+ dnf install -y rng-tools
+ systemctl enable --now rngd
 
 # V-258067 - RHEL 9 must prevent users from disabling session control mechanisms.
  sed -i '/tmux/d' /etc/shells
@@ -83,14 +68,8 @@ sed -i 's#/var/run/faillock#/var/log/faillock#g' /etc/security/faillock.conf
 # V-257991 - RHEL 9 SSH server must be configured to use only Message Authentication Codes (MACs) employing FIPS 140-3 validated cryptographic hash algorithms.
  sed -i 's/MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512/MACs hmac-sha2-256-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha1,umac-128@openssh.com,hmac-sha2-512/g' /etc/crypto-policies/back-ends/openssh.config
 
-# V-257948 - RHEL 9 systems using Domain Name Servers (DNS) resolution must have at least two name servers configured.
-
-# V-258125 - The pcscd service on RHEL 9 must be active.
-systemctl enable pcscd
-systemctl start pcscd
-
-# V-258106 - RHEL 9 must require users to provide a password for privilege escalation.
-find /etc/sudoers /etc/sudoers.d -type f -exec sed -i '/NOPASSWD/ s/^/# /g' {} \;
+  # # V-257948 - RHEL 9 systems using Domain Name Servers (DNS) resolution must have at least two name servers configured. # Fix via Terraform init
+  # # V-258125 - The pcscd service on RHEL 9 must be active. # WontFix
 
 # V-258228 - RHEL 9 audit system must protect logon UIDs from unauthorized change.
  echo "--loginuid-immutable" >> /etc/audit/rules.d/audit.rules
@@ -106,9 +85,7 @@ find /etc/sudoers /etc/sudoers.d -type f -exec sed -i '/NOPASSWD/ s/^/# /g' {} \
  ln -s /usr/share/crypto-policies/FIPS/opensshserver.txt /etc/crypto-policies/back-ends/opensshserver.config
  ln -s /usr/share/crypto-policies/FIPS/openssh.txt /etc/crypto-policies/back-ends/openssh.config
 
-
-# V-257820 - RHEL 9 must check the GPG signature of software packages originating from external software repositories before installation.
-echo "gpgcheck=1" >> /etc/dnf/dnf.conf
+# STIG MANUAL CHECKS
 
 # V-257937 A RHEL 9 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems.
 # firewall-cmd --permanent --add-service=ssh --zone=drop
@@ -118,14 +95,4 @@ echo "gpgcheck=1" >> /etc/dnf/dnf.conf
 # V-258042 - RHEL 9 user account passwords must have a 60-day maximum password lifetime restriction, V-258105 - RHEL 9 passwords must have a 24 hours minimum password lifetime restriction in /etc/shadow.
  passwd -x 60 -n 1 root
 
-# V-258174 RHEL 9 must have mail aliases to notify the information system security officer (ISSO) and system administrator (SA) (at a minimum) in the event of an audit processing failure.
-dnf install postfix -y
-systemctl enable --now postfix
-sed -i 's/root: change_me@localhost/root: isso/g' /etc/aliases
-newaliases
-
-
-# V-258038 USBGuard RHEL 9 must block unauthorized peripherals before establishing a connection.
-usbguard generate-policy -X -t reject >/etc/usbguard/rules.conf
-
-# V-258241 fails due to cipher added in V-257989, but removed when FIPS is enabled.
+  # # V-258174 RHEL 9 must have mail aliases to notify the information system security officer (ISSO) and system administrator (SA) (at a minimum) in the event of an audit processing failure.

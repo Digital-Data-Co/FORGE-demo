@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vram-ui
+  namespace: vram
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: vram-ui
+  template:
+    metadata:
+      labels:
+        app: vram-ui
+    spec:
+      containers:
+      - image: p314aa02.dc3n.navy.mil:5001/vram/vram-ui:20240916
+        imagePullPolicy: Never
+        name: vram-ui
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 256Mi
+      restartPolicy: Always
+

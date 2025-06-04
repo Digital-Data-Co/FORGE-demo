@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: "2019-03-12T20:09:54Z"
+  generation: 698
+  name: vram-backend
+  namespace: vram
+  resourceVersion: "321540396"
+  selfLink: /apis/apps.openshift.io/v1/namespaces/prod/deploymentconfigs/vram-backend
+  uid: cd1b1493-4502-11e9-9d20-0050569b10f1
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      name: vram-backend
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        name: vram-backend
+    spec:
+      containers:
+      - env:
+        - name: VRAM_REGION
+          value: prod_nipr
+        - name: JAVA_OPTS
+          value: -Djava.security.disableSystemPropertiesFile=true -XX:+UseStringDeduplication
+            -Xms4g -Xmx10g -Dorg.apache.tomcat.util.digester.PROPERTY_SOURCE=org.apache.tomcat.util.digester.EnvironmentPropertySource
+        - name: DATA_DB_MAX_ACTIVE
+          value: "150"
+        - name: DATA_DB_MAX_IDLE
+          value: "10"
+        - name: DATA_DB_SLOW_QUERY_MILLIS
+          value: "60000"
+        - name: DATA_DB_MAX_WAIT
+          value: "30000"
+        - name: LOB_DB_MAX_ACTIVE
+          value: "100"
+        - name: LOB_DB_MAX_IDLE
+          value: "10"
+        - name: LOB_DB_MAX_WAIT
+          value: "30000"
+        - name: AMQ_URL
+          value: tcp:\/\/broker-amq-headless.prod.svc.cluster.local:61616
+        - name: AMQ_USERNAME
+          value: vramUser
+        #- name: AMQ_PASSWORD
+        #  valueFrom:
+        #    secretKeyRef:
+        #      key: AMQ_PASSWORD
+        #      name: amq-secret
+        - name: SMTP_HOST
+          value: smtp.dc3n.navy.mil
+        - name: MAIL_ADMIN
+          value: vram@us.navy.mil
+        - name: MAIL_NOREPLY
+          value: vram-noreply@navy.mil
+        - name: ABANDONED_TIMEOUT
+          value: "5400"
+        - name: TLS_CLIENT_CERT_HEADER
+          value: X-SSL-CERT
+        - name: EMASS_API_KEY
+          value: 51f209c9-e5ee-4bf8-994d-0ced2aa12441
+        - name: IDP_MSG_RECEIVER_ENDPOINT
+          value: https://login.nis.navy.mil/idp/SSO.saml2
+        - name: SP_ASSERTION_CONSUMER_ENDPOINT
+          value: https://vram.navy.mil/saml
+        - name: SP_ISSUER_ID
+          value: https://vram.navy.mil/sp
+        - name: ENTITY_ID
+          value: nis-signing
+        - name: SENDER_ENTITY_ID
+          value: login.nis.navy.mil
+        - name: SAML_SIGN_REQUEST
+          value: "true"
+        - name: SAML_ENABLED
+          value: "true"
+        - name: SAML_DEBUG
+          value: "false"
+        - name: KEY_STORE_PASSWORD
+          value: password
+        - name: DATA_ADMIN_URL
+          value: jdbc:postgresql://scopetestpgdb.postgres.database.usgovcloudapi.net:5432/nicweb
+        - name: LOB_ADMIN_URL
+          value: jdbc:postgresql://scopetestpgdb.postgres.database.usgovcloudapi.net:5432/niclob
+        - name: DATA_USER_URL
+          value: jdbc:postgresql://scopetestpgdb.postgres.database.usgovcloudapi.net:5432/nicweb
+        - name: DATA_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-admin-username
+              name: vram-secret
+        - name: DATA_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-admin-password
+              name: vram-secret
+        - name: DATA_USER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-username
+              name: vram-secret
+        - name: LOB_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-admin-username
+              name: vram-secret
+        - name: DATA_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-password
+              name: vram-secret
+        - name: LOB_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: vram-data-admin-password
+              name: vram-secret
+        - name: CATALINA_TMPDIR
+          value: /tmp
+        - name: EMASS_P12_FILE
+          value: /container/certs/emass.p12
+        - name: EMASS_P12_PASSPHRASE
+          value: changeit
+        image: p314aa02.dc3n.navy.mil:5001/vram/vram-backend:20240916-2
+        imagePullPolicy: Never
+        name: vram-backend
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "6"
+            memory: 18Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      volumeMounts:
+      #  - mountPath: /data
+      #    name: volume-xwovp
+      #  - mountPath: /var/lib/jbossas/misc
+      #    name: backend-storage
+      #  - mountPath: /container/certs
+      #    name: volume-cg1us
+      #    readOnly: true
+      #  - mountPath: /container/saml
+      #    name: volume-gghxs
+      #    readOnly: true
+      #  - mountPath: /container/saml-metadata
+        name: volume-brevd
+          - mountPath: /usr/local/tomcat/logs
+          name: backend-logs
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: default
+      serviceAccountName: default
+      terminationGracePeriodSeconds: 30
+      volumes:
+     # - name: volume-xwovp
+     #   persistentVolumeClaim:
+     #     claimName: backend-pvc
+     # - name: backend-storage
+     #   persistentVolumeClaim:
+     #     claimName: backend-keystorage-pvc
+     # - name: volume-cg1us
+     #   secret:
+     #     defaultMode: 420
+     #     secretName: emass-cert
+     # - name: volume-gghxs
+     #   secret:
+     #     defaultMode: 420
+     #     secretName: saml-keystore
+     # - configMap:
+     #     defaultMode: 420
+     #     name: metadata-nis
+       name: volume-brevd
+        - name: backend-logs
+        persistentVolumeClaim:
+          claimName: backend-logs-pvc
+
