@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set up
-BASE_URL="http://13.77.174.78:3000/api"
+BASE_URL="http://localhost:3000/api"
 USERNAME="ddadmin"
 PASSWORD="DigitalData2025!"
 SSH_KEY_ID=1
