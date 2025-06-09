@@ -1,152 +1,153 @@
 #!/bin/bash
 set -euo pipefail
 
-# ---- CONFIG ----
-HARBOR_VERSION="v2.13.1"
-HARBOR_HOST="harbor.local"
-HARBOR_INSTALL_DIR="/opt/harbor"
-CERTS_DIR="${HARBOR_INSTALL_DIR}/cert"
-HARBOR_ADMIN_PASS="SuperSecretPass123"
-HARBOR_DB_PASS="HarborDBPass!"
-USERS=("dnelson" "badamek")
-USER_FULLNAMES=("Dave Nelson" "Brandon Adamek")
-USER_EMAILS=("admin@localhost.local" "admin@localhost.local")
-IMPORTED_IMAGES_DIR="/opt/harbor/imported"
+# === CONFIGURATION ===
+HARBOR_VERSION="v2.10.0"
+K8S_VERSION="v1.32.5"
+CALICO_VERSION="v3.30.1"
+NETSHOOT_VERSION="latest"
+HOSTNAME="harbor.local"
+HTTP_PORT=80
+HTTPS_PORT=8443
+ADMIN_PASSWORD="Harbor12345"
+INSTALL_DIR="/opt/harbor"
+CERT_DIR="${INSTALL_DIR}/certs"
+DOCKER_CERT_DIR="/etc/docker/certs.d/${HOSTNAME}:${HTTPS_PORT}"
+IMAGE_DIR="${INSTALL_DIR}/harbor-images"
+TEST_IMAGE="alpine"
+TEST_REPO="library/alpine"
 
-# ---- PREP ----
-echo "[1/9] Installing dependencies..."
-dnf update -y
-#dnf install -y docker.io docker-compose openssl curl jq
+# === PHASE 1: IMAGE PULL AND SAVE ===
+echo "[+] Creating image directory..."
+mkdir -p "$IMAGE_DIR"
 
-echo "[2/9] Downloading Harbor ${HARBOR_VERSION}..."
-cd /tmp
-mkdir -p ${HARBOR_INSTALL_DIR}
-curl -sLO "https://github.com/goharbor/harbor/releases/download/${HARBOR_VERSION}/harbor-offline-installer-${HARBOR_VERSION}.tgz"
-tar xzf "harbor-offline-installer-${HARBOR_VERSION}.tgz" -C /opt
-
-# ---- CONFIG ----
-echo "[3/9] Generating harbor.yml..."
-cat > "${HARBOR_INSTALL_DIR}/harbor.yml" <<EOF
-hostname: ${HARBOR_HOST}
-http:
-  port: 8080
-harbor_admin_password: ${HARBOR_ADMIN_PASS}
-database:
-  password: ${HARBOR_DB_PASS}
-data_volume: /data
-jobservice:
-  max_job_workers: 10
-  max_job_duration_hours: 24
-  job_loggers:
-    - STD_OUTPUT
-    - file
-  logger_sweeper_duration: 1
-notification:
-  webhook_job_max_retry: 3
-  webhook_job_http_client_timeout: 300
-log:
-  level: info
-  local:
-    log_location: /var/log/harbor
-    rotate_count: 5
-trivy:
-  ignoreUnfixed: false
-  insecure: true
-  skipUpdate: false
-  offlineScan: true
-  vulnType: "os,library"
-  severity: "CRITICAL,HIGH"
-EOF
-
-echo "[4/9] Installing Harbor..."
-cd "${HARBOR_INSTALL_DIR}"
-./install.sh
-
-echo "[6/9] Waiting for Harbor to start..."
-sleep 10
-docker compose ps
-
-# ---- USERS & PROJECTS ----
-echo "[7/9] Creating users & project..."
-HARBOR_API="https://${HARBOR_HOST}/api/v2.0"
-AUTH="admin:${HARBOR_ADMIN_PASS}"
-
-# Create 'k8s' project
-curl -sk -u $AUTH -X POST "${HARBOR_API}/projects" \
-  -H 'Content-Type: application/json' \
-  -d '{"project_name":"k8s","metadata":{"public":"true"}}'
-
-# Add users
-for i in "${!USERS[@]}"; do
-  USERNAME="${USERS[$i]}"
-  REALNAME="${USER_FULLNAMES[$i]}"
-  PASSWORD="$(openssl rand -base64 16)"
-  USER_EMAIL="${USER_EMAILS[$i]}"
-  echo "$USERNAME password: $PASSWORD"
-
-  curl -sk -u $AUTH -X POST "${HARBOR_API}/users" \
-    -H 'Content-Type: application/json' \
-    -d "{\"username\":\"$USERNAME\",\"realname\":\"$REALNAME\",\"password\":\"$PASSWORD\",\"email\":\"$USER_EMAIL\"}"
-
-  curl -sk -u $AUTH -X POST "${HARBOR_API}/projects/k8s/members" \
-    -H 'Content-Type: application/json' \
-    -d "{\"role_id\":2,\"member_user\":{\"username\":\"$USERNAME\"}}"
-done
-
-# ---- IMAGE PRELOAD ----
-echo "[8/9] Preloading Kubernetes & Calico images..."
-
-IMAGES=(
-  "registry.k8s.io/kube-apiserver:v1.32.5"
-  "registry.k8s.io/kube-controller-manager:v1.32.5"
-  "registry.k8s.io/kube-scheduler:v1.32.5"
-  "registry.k8s.io/kube-proxy:v1.32.5"
+ALL_IMAGES=(
+  # Kubernetes core
+  "registry.k8s.io/kube-apiserver:${K8S_VERSION}"
+  "registry.k8s.io/kube-controller-manager:${K8S_VERSION}"
+  "registry.k8s.io/kube-scheduler:${K8S_VERSION}"
+  "registry.k8s.io/kube-proxy:${K8S_VERSION}"
   "registry.k8s.io/pause:3.10"
   "registry.k8s.io/etcd:3.5.12"
   "registry.k8s.io/coredns/coredns:v1.11.1"
 
-  "docker.io/calico/cni:v3.30.1"
-  "docker.io/calico/kube-controllers:v3.30.1"
-  "docker.io/calico/node:v3.30.1"
-  "docker.io/calico/typha:v3.30.1"
-  "docker.io/calico/apiserver:v3.30.1"
+  # Calico
+  "docker.io/calico/cni:${CALICO_VERSION}"
+  "docker.io/calico/kube-controllers:${CALICO_VERSION}"
+  "docker.io/calico/node:${CALICO_VERSION}"
+  "docker.io/calico/typha:${CALICO_VERSION}"
+  "docker.io/calico/apiserver:${CALICO_VERSION}"
 
-  "docker.io/nicolaka/netshoot:latest"
+  # Harbor
+  "goharbor/harbor-core:${HARBOR_VERSION}"
+  "goharbor/harbor-portal:${HARBOR_VERSION}"
+  "goharbor/harbor-jobservice:${HARBOR_VERSION}"
+  "goharbor/harbor-db:${HARBOR_VERSION}"
+  "goharbor/harbor-registryctl:${HARBOR_VERSION}"
+  "goharbor/harbor-registry:${HARBOR_VERSION}"
+  "goharbor/redis-photon:${HARBOR_VERSION}"
+  "goharbor/trivy-adapter-photon:${HARBOR_VERSION}"
+  "goharbor/nginx-photon:${HARBOR_VERSION}"
+
+  # Troubleshooting
+  "nicolaka/netshoot:${NETSHOOT_VERSION}"
 )
 
-
-for IMG in "${IMAGES[@]}"; do
-  docker pull "$IMG"
-  NAME=$(basename "$IMG")
-  docker tag "$IMG" "${HARBOR_HOST}/k8s/$NAME"
-  docker push "${HARBOR_HOST}/k8s/$NAME"
+echo "[+] Pulling and saving all images..."
+for IMAGE in "${ALL_IMAGES[@]}"; do
+  TAG=$(echo "$IMAGE" | sed 's|[/:]|_|g')
+  TAR="${IMAGE_DIR}/${TAG}.tar"
+  echo "[>] Pulling $IMAGE"
+  docker pull "$IMAGE"
+  echo "[>] Saving $IMAGE -> $TAR"
+  docker save "$IMAGE" -o "$TAR"
 done
 
-# ---- CUSTOM IMAGE IMPORT ----
-echo "[9/9] Importing custom .tar.gz images..."
-if [ -d "${IMPORTED_IMAGES_DIR}" ]; then
-  for FILE in "${IMPORTED_IMAGES_DIR}"/*.tar.gz; do
-    docker load -i "$FILE"
-    IMAGE_ID=$(docker load -i "$FILE" | awk '/Loaded image:/ {print $3}')
-    if [[ -n "$IMAGE_ID" ]]; then
-      TAG=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "$IMAGE_ID" | head -n1)
-      docker tag "$TAG" "${HARBOR_HOST}/k8s/${TAG##*/}"
-      docker push "${HARBOR_HOST}/k8s/${TAG##*/}"
-    fi
-  done
+# === PHASE 2: CERT GENERATION ===
+echo "[+] Creating cert directory..."
+mkdir -p "$CERT_DIR"
+
+echo "[+] Generating TLS certificate for $HOSTNAME..."
+openssl req -x509 -nodes -days 365 \
+  -subj "/C=US/ST=IL/L=Chicago/O=IL6/CN=${HOSTNAME}" \
+  -addext "subjectAltName = DNS:${HOSTNAME}" \
+  -newkey rsa:4096 \
+  -keyout "${CERT_DIR}/tls.key" \
+  -out "${CERT_DIR}/tls.crt"
+
+echo "[+] Installing cert to Docker trust store..."
+mkdir -p "$DOCKER_CERT_DIR"
+cp "${CERT_DIR}/tls.crt" "${DOCKER_CERT_DIR}/ca.crt"
+systemctl restart docker || echo "[!] Could not restart Docker—please restart it manually"
+
+# === PHASE 3: HARBOR INSTALL ===
+echo "[+] Setting up Harbor install..."
+cd "$INSTALL_DIR"
+if [[ ! -f harbor-online-installer-${HARBOR_VERSION}.tgz ]]; then
+  curl -LO https://github.com/goharbor/harbor/releases/download/${HARBOR_VERSION}/harbor-online-installer-${HARBOR_VERSION}.tgz
 fi
+tar -xzf harbor-online-installer-${HARBOR_VERSION}.tgz
+cd harbor
 
-# ---- containerd config output ----
-cat <<EOF > containerd-harbor-config.conf
-[plugins."io.containerd.grpc.v1.cri".registry.mirrors."$HARBOR_HOST"]
-  endpoint = ["https://$HARBOR_HOST"]
+echo "[+] Writing harbor.yml..."
+cat <<EOF > harbor.yml
+hostname: ${HOSTNAME}
 
-[plugins."io.containerd.grpc.v1.cri".registry.configs."$HARBOR_HOST".tls]
-  insecure_skip_verify = true
+http:
+  port: ${HTTP_PORT}
+
+https:
+  port: ${HTTPS_PORT}
+  certificate: ${CERT_DIR}/tls.crt
+  private_key: ${CERT_DIR}/tls.key
+
+harbor_admin_password: ${ADMIN_PASSWORD}
+
+internal_tls:
+  enabled: true
+
+database:
+  password: root123
+
+data_volume: /data
+
+trivy:
+  ignoreUnfixed: true
+  skipUpdate: true
+  insecure: false
+
+log:
+  level: info
+
+_version: ${HARBOR_VERSION}
 EOF
 
-echo ""
-echo "✅ Harbor install complete!"
-echo "📝 containerd registry config written to: containerd-harbor-config.conf"
-echo "   Manually append it to /etc/containerd/config.toml and restart containerd."
+echo "[+] Running prepare script..."
+./prepare
 
+echo "[+] Starting Harbor..."
+docker-compose up -d
+
+echo "[+] Waiting 15 seconds for services to stabilize..."
+sleep 15
+
+# === PHASE 4: TEST PUSH/PULL ===
+echo "[+] Pulling test image and tagging for Harbor..."
+docker pull $TEST_IMAGE
+docker tag $TEST_IMAGE ${HOSTNAME}:${HTTPS_PORT}/${TEST_REPO}
+
+echo "[+] Logging into Harbor registry..."
+docker login ${HOSTNAME}:${HTTPS_PORT} -u admin -p ${ADMIN_PASSWORD}
+
+echo "[+] Pushing image to Harbor..."
+docker push ${HOSTNAME}:${HTTPS_PORT}/${TEST_REPO}
+
+echo "[+] Removing local image and pulling from Harbor..."
+docker rmi ${HOSTNAME}:${HTTPS_PORT}/${TEST_REPO}
+docker pull ${HOSTNAME}:${HTTPS_PORT}/${TEST_REPO}
+
+# === DONE ===
+echo "[✓] Harbor fully installed with TLS and Trivy."
+echo "[→] Access at: https://${HOSTNAME}:${HTTPS_PORT}"
+echo "[→] Default credentials: admin / ${ADMIN_PASSWORD}"
+echo "[→] Add to /etc/hosts if not resolvable: 127.0.0.1 ${HOSTNAME}"
