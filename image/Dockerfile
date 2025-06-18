@@ -33,9 +33,13 @@ RUN yum clean all
 RUN systemctl enable crond.service
 RUN systemctl enable postfix.service
 
+RUN curl -L https://github.com/projectcalico/calico/releases/download/v3.30.1/calicoctl-linux-amd64 -o /usr/local/bin/calicoctl
+RUN chmod +x /usr/local/bin/calicoctl
 RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc
 RUN dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
 RUN dnf install -y azure-cli
+RUN yum-config-manager --add-repo https://pkgs.k8s.io/core:/stable:/v1.33/rpm/
+RUN dnf install -y kubectl
 RUN yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 RUN dnf install -y terraform
 RUN python3 -m pip install --upgrade -r /etc/semaphore/requirements.txt 
