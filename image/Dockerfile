@@ -33,7 +33,7 @@ RUN yum clean all
 RUN systemctl enable crond.service
 RUN systemctl enable postfix.service
 
-RUN curl -L https://github.com/projectcalico/calico/releases/download/v3.30.1/calicoctl-linux-amd64 -o /usr/local/bin/calicoctl
+RUN curl -L https://github.com/projectcalico/calico/releases/download/v3.30.1/calicoctl-linux-arm64 -o /usr/local/bin/calicoctl
 RUN chmod +x /usr/local/bin/calicoctl
 RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc
 RUN dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
@@ -93,6 +93,8 @@ RUN set -eux; \
     disabledAlgorithms="${disabledAlgorithms//[[:space:]]/}"; \
     sed -i "s/^jdk\.tls\.disabledAlgorithms=/jdk.tls.disabledAlgorithms=$disabledAlgorithms/" \
        /usr/share/crypto-policies/FIPS/java.txt;
+
+RUN echo "StrictHostKeyChecking=accept-new > ~/.ssh/config
 
 ENV container=oci
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
