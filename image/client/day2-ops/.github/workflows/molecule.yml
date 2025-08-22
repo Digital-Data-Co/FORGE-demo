@@ -1,0 +1,22 @@
+name: Molecule CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install Ansible + Molecule
+        run: |
+          pip install ansible molecule[docker] yamllint ansible-lint pytest testinfra
+      - name: Run Molecule tests
+        run: molecule test

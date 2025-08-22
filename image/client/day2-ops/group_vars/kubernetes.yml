@@ -1,0 +1,5 @@
+---
+k8s_target_version: "1.29.6"
+stig_enabled: true
+acas_enabled: false
+backup_root: /var/backups/day2ops

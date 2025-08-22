@@ -1,0 +1,5 @@
+---
+# Main task list for day2_ops
+- name: Placeholder task
+  ansible.builtin.debug:
+    msg: "Day2 Ops role running"

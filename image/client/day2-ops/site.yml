@@ -1,0 +1,6 @@
+---
+- name: Day Two Operations for STIG'd RHEL Kubernetes Nodes
+  hosts: kubernetes
+  become: true
+  roles:
+    - role: day2_ops

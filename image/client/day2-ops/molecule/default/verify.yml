@@ -1,0 +1,12 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Check that backup dir exists
+      ansible.builtin.stat:
+        path: /var/backups/day2ops
+      register: backup_dir
+    - name: Assert backup dir
+      ansible.builtin.assert:
+        that:
+          - backup_dir.stat.exists
