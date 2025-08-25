@@ -1,0 +1,45 @@
+{
+	"antivirusEngine":{
+		"behaviorMonitoring":"enabled",
+		"enforcementLevel":"passive",
+		"scanAfterDefinitionUpdate":true,
+		"scanArchives":true,
+		"maximumOnDemandScanThreads":2,
+		"exclusionsMergePolicy":"admin_only",
+		"exclusions":[
+		],
+		"allowedThreats":[
+
+ 		],
+		"disallowedThreatActions":[
+			"allow",
+			"restore"
+		],
+		"threatTypeSettingsMergePolicy":"admin_only",
+		"threatTypeSettings":[
+			{
+			"key":"potentially_unwanted_application",
+			"value":"block"
+			},
+			{
+			"key":"archive_bomb",
+			"value":"audit"
+			}
+		]
+	},
+	"cloudService":{
+		"enabled":true,
+		"diagnosticLevel":"optional",
+		"automaticSampleSubmissionConsent":"safe",
+		"automaticDefinitionUpdateEnabled":true
+},
+"edr": {
+	"groupIds":"",
+	"tags": [
+			{
+			"key": "GROUP",
+			"value": "USN_FLANKSPEED_NAVWAR_NIWCPACIFICSANDIEGOCA_N66001_NODOMAIN_EMASSID9843_<resource_group>"
+			}
+		]
+	}
+}
