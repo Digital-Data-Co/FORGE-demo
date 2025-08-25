@@ -1,5 +1,5 @@
 ---
-- name: Day Two Operations for STIG'd RHEL Kubernetes Nodes
+- name: Day One Operations for deploying STIG'd RHEL Kubernetes Nodes
   hosts: kubernetes
   gather_facts: true
   become: true
@@ -8,4 +8,4 @@
   vars:
     ts: "{{ ansible_date_time.iso8601_basic }}"
   roles:
-  - role: day2_ops
+  - role: day1_ops
