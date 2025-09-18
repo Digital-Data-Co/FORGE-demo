@@ -27,7 +27,7 @@ RUN dnf install -y sshpass
 RUN dnf install -y wget
 RUN dnf install -y yum-utils
 RUN dnf install -y python3-pip
-RUN dnf install sqllite
+RUN dnf install -y sqllite3
 RUN yum clean all
 
 # Enable and start required services
