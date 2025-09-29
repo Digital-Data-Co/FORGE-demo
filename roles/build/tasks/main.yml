@@ -1,0 +1,44 @@
+---
+- name: Create demo application directory
+  ansible.builtin.file:
+    path: /tmp/demo-app-src
+    state: directory
+    mode: '0755'
+
+- name: Create demo application files
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      echo "Hello from Forge Demo Application!"
+      echo "Version: {{ forge_vars.task_details.target_version | default('1.0.0') }}"
+      echo "Build timestamp: $(date)"
+    dest: /tmp/demo-app-src/demo-app.sh
+    mode: '0755'
+
+- name: Create demo application README
+  ansible.builtin.copy:
+    content: |
+      # Forge Demo Application
+      
+      This is a simple demo application created by Forge.
+      
+      Version: {{ forge_vars.task_details.target_version | default('1.0.0') }}
+      Build Date: {{ ansible_date_time.iso8601 }}
+      
+      ## Usage
+      
+      Run the application:
+      ```bash
+      ./demo-app.sh
+      ```
+    dest: /tmp/demo-app-src/README.md
+
+- name: Builds an artifact and stores it in storage
+  ansible.builtin.archive:
+    path: /tmp/demo-app-src
+    dest: /tmp/demo-app-{{ forge_vars.task_details.target_version | default('1.0.0') }}.tar.gz
+    format: gz
+
+- name: Print final version
+  ansible.builtin.debug:
+    msg: "Version {{ forge_vars.task_details.target_version | default('1.0.0') }} was built and ready for deployment."

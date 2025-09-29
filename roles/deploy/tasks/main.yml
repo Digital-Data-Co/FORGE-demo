@@ -1,0 +1,46 @@
+---
+- name: Create deployment directory
+  ansible.builtin.file:
+    path: /opt/forge-demo
+    state: directory
+    mode: '0755'
+
+- name: Install artifact and create configuration files
+  ansible.builtin.unarchive:
+    src: /tmp/demo-app-{{ forge_vars.task_details.incoming_version | default('1.0.0') }}.tar.gz
+    dest: /opt/forge-demo
+    remote_src: yes
+
+- name: Create systemd service file
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Forge Demo Application
+      After=network.target
+      
+      [Service]
+      Type=simple
+      User=root
+      WorkingDirectory=/opt/forge-demo
+      ExecStart=/opt/forge-demo/demo-app.sh
+      Restart=always
+      RestartSec=10
+      
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/forge-demo.service
+    mode: '0644'
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Start and enable forge-demo service
+  ansible.builtin.systemd:
+    name: forge-demo
+    state: started
+    enabled: yes
+
+- name: Print installed version
+  ansible.builtin.debug:
+    msg: "Version {{ forge_vars.task_details.incoming_version | default('1.0.0') }} was installed and started."

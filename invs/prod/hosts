@@ -1,0 +1,5 @@
+[site]
+localhost ansible_connection=local ansible_user=root
+
+[site:vars]
+ansible_python_interpreter=/usr/bin/python3

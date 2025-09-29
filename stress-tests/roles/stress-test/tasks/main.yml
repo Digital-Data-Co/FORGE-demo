@@ -1,0 +1,65 @@
+- name: Print host info
+  debug:
+    msg: "Running on {{ inventory_hostname }}"
+
+- name: Generate large output using debug
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ range(1, 51)|list }}"
+
+- name: Create dummy file
+  copy:
+    dest: "{{ dummy_file_path }}"
+    content: ""
+    force: yes
+
+- name: Add {{ dummy_lines }} lines to dummy file
+  lineinfile:
+    path: "{{ dummy_file_path }}"
+    line: "This is line {{ item }}"
+    create: yes
+  loop: "{{ range(1, dummy_lines + 1)|list }}"
+
+- name: Stat dummy file
+  stat:
+    path: "{{ dummy_file_path }}"
+  register: dummy_stat
+
+- name: Show file size and checksum
+  debug:
+    var: dummy_stat.stat
+
+- name: Repeat shell commands
+  shell: 'echo "Loop index: {{ item }}"; date'
+  register: loop_shell
+  loop: "{{ range(1, 30)|list }}"
+
+- name: Show each shell command output
+  debug:
+    msg: "{{ item.stdout }}"
+  loop: "{{ loop_shell.results }}"
+
+- name: Create many empty files
+  file:
+    path: "/tmp/dummy_file_{{ item }}.txt"
+    state: touch
+  loop: "{{ range(1, 50)|list }}"
+
+- name: List all /tmp files
+  shell: ls -lh /tmp | grep dummy_file
+  register: tmp_files
+
+- name: Print file list
+  debug:
+    msg: "{{ tmp_files.stdout_lines }}"
+
+- name: Gather detailed facts
+  setup:
+
+- name: Print OS info
+  debug:
+    var: ansible_distribution
+
+- name: Print CPU count
+  debug:
+    var: ansible_processor_cores

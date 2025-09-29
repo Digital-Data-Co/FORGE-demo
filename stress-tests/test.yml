@@ -1,0 +1,9 @@
+- name: Playbook with huge output
+  hosts: site
+
+  vars:
+    dummy_file_path: /tmp/ansible_dummy_file.txt
+    dummy_lines: 100
+
+  roles:
+  - stress-test

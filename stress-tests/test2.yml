@@ -1,0 +1,12 @@
+- name: Generate fast, huge output with debug
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    total_messages: 1000
+
+  tasks:
+    - name: Print fast debug messages in loop
+      ansible.builtin.debug:
+        var: lookup('community.general.random_string', base64=true, length=100000)
+      loop: "{{ range(1, total_messages + 1) | list }}"

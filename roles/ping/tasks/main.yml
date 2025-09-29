@@ -1,0 +1,8 @@
+---
+- name: Ping forgeui.com
+  ansible.builtin.ping:
+    data: "Hello from Forge Demo!"
+
+- name: Display ping result
+  ansible.builtin.debug:
+    msg: "Successfully pinged forgeui.com - Forge Demo is working!"
