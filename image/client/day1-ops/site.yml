@@ -1,0 +1,11 @@
+---
+- name: Day One Operations for deploying STIG'd RHEL Kubernetes Nodes
+  hosts: kubernetes
+  gather_facts: true
+  become: true
+  any_errors_fatal: false
+  strategy: free
+  vars:
+    ts: "{{ ansible_date_time.iso8601_basic }}"
+  roles:
+  - role: day1_ops

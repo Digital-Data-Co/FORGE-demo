@@ -1,0 +1,81 @@
+---
+# roles/day2_ops/tasks/main.yml
+
+# 1. Backup etcd
+- name: Backup etcd data
+  ansible.builtin.command: etcdctl snapshot save /var/backups/day2ops/etcd-{{ ansible_date_time.iso8601 }}.db
+  register: etcd_backup
+  ignore_errors: true
+
+# 2. Backup containerd config
+- name: Backup containerd config
+  ansible.builtin.copy:
+    src: /etc/containerd/config.toml
+    dest: "/var/backups/day2ops/containerd-config-{{ ansible_date_time.iso8601 }}.toml"
+    remote_src: true
+  ignore_errors: true
+
+# 3. Backup Kubernetes manifests
+- name: Backup Kubernetes manifests
+  ansible.builtin.archive:
+    path: /etc/kubernetes/manifests
+    dest: "/var/backups/day2ops/k8s-manifests-{{ ansible_date_time.iso8601 }}.tar.gz"
+  ignore_errors: true
+
+# 4. Upgrade Kubernetes (separate from RHEL)
+- name: Upgrade kubeadm
+  ansible.builtin.package:
+    name: kubeadm-{{ k8s_target_version }}
+    state: present
+  ignore_errors: true
+
+- name: Upgrade kubelet
+  ansible.builtin.package:
+    name: kubelet-{{ k8s_target_version }}
+    state: present
+  ignore_errors: true
+  notify: restart kubelet
+
+# 5. Run STIG compliance scan
+- name: Run STIG report
+  ansible.builtin.command: oscap xccdf eval --profile stig --results /var/backups/day2ops/stig-results-{{ ansible_date_time.iso8601 }}.xml /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
+  ignore_errors: true
+
+# 6. Cleanup old logs
+- name: Cleanup old logs
+  ansible.builtin.find:
+    paths: /var/log
+    age: 30d
+    recurse: yes
+  register: old_logs
+  ignore_errors: true
+
+- name: Remove old logs
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ old_logs.files | default([]) }}"
+  ignore_errors: true
+
+# 7. Cleanup backup retention (custom include)
+- name: Cleanup backup retention
+  ansible.builtin.include_tasks: cleanup_retention.yml
+  ignore_errors: true
+
+# 8. Verify fapolicyd is running
+- name: Ensure fapolicyd service is running
+  ansible.builtin.service:
+    name: fapolicyd
+    state: started
+    enabled: true
+  ignore_errors: true
+  notify: restart fapolicyd
+
+# 9. Verify acas agent (if enabled)
+- name: Check ACAS agent status
+  ansible.builtin.service:
+    name: nessusagent
+    state: started
+    enabled: true
+  when: acas_enabled | bool
+  ignore_errors: true

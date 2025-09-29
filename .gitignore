@@ -22,3 +22,16 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Additional patterns from existing repo
+*.gz
+*.tar
+*.tgz
+*.rpm
+*.zip
+*.asc
+image/client/ansible/airgap/rpms/gpg
+*.0_x5
+image/client/terraform/azure/DEV/.terraform/providers/registry.terraform.io/hashicorp/azurerm/4.5.0/darwin_arm64/LICENSE.txt
+image/client/terraform/azure/DEV/.terraform.lock.hcl
+/image/client/ansible/airgap/images/release-v3.28.2

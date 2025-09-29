@@ -1,0 +1,6 @@
+---
+- name: restart fapolicyd
+  ansible.builtin.service:
+    name: fapolicyd
+    state: restarted
+  listen: restart fapolicyd
