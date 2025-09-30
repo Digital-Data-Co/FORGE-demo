@@ -126,4 +126,4 @@ MIT © Digital Data Co
 
 Collection of example projects demonstrating various automation and infrastructure-as-code tools integration with Forge.
 
-forgeui.com
+digitaldata.co

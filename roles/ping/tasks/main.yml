@@ -1,8 +1,8 @@
 ---
-- name: Ping forgeui.com
+- name: Ping digitaldata.co
   ansible.builtin.ping:
     data: "Hello from Forge Demo!"
 
 - name: Display ping result
   ansible.builtin.debug:
-    msg: "Successfully pinged forgeui.com - Forge Demo is working!"
+    msg: "Successfully pinged digitaldata.co - Forge Demo is working!"
