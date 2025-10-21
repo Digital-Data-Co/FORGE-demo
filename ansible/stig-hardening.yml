@@ -1,0 +1,123 @@
+---
+# STIG Hardening Playbook for Golden Images
+# Applied during Packer build process
+
+- name: Apply STIG Hardening to Golden Image
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    stig_profile: "{{ lookup('env', 'STIG_PROFILE') | default('rhel9-stig-high', true) }}"
+    forge_managed: true
+    
+  tasks:
+    - name: Display hardening profile
+      debug:
+        msg: "Applying STIG profile: {{ stig_profile }}"
+        
+    - name: Update all packages
+      dnf:
+        name: "*"
+        state: latest
+        
+    - name: Install STIG compliance tools
+      dnf:
+        name:
+          - openscap-scanner
+          - scap-security-guide
+          - aide
+          - audispd-plugins
+        state: present
+        
+    - name: Configure FIPS mode
+      command: fips-mode-setup --enable
+      register: fips_result
+      changed_when: "'already in FIPS mode' not in fips_result.stdout"
+      
+    - name: Apply STIG hardening with OpenSCAP
+      shell: |
+        oscap xccdf eval \
+          --remediate \
+          --profile {{ stig_profile }} \
+          --results /tmp/stig-remediation-results.xml \
+          /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
+      register: stig_remediation
+      failed_when: false
+      
+    - name: Disable unnecessary services
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop:
+        - bluetooth
+        - avahi-daemon
+      failed_when: false
+      
+    - name: Configure audit rules
+      copy:
+        dest: /etc/audit/rules.d/stig.rules
+        content: |
+          ## STIG Audit Rules for Forge Golden Images
+          
+          # Modify user/group
+          -w /etc/group -p wa -k identity
+          -w /etc/passwd -p wa -k identity
+          -w /etc/gshadow -p wa -k identity
+          -w /etc/shadow -p wa -k identity
+          
+          # Modify sudo configuration
+          -w /etc/sudoers -p wa -k actions
+          -w /etc/sudoers.d/ -p wa -k actions
+          
+          # Log all commands
+          -a always,exit -F arch=b64 -S execve -k exec
+          
+    - name: Set secure SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+        - { regexp: '^#?Protocol', line: 'Protocol 2' }
+        - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 600' }
+        - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 0' }
+        
+    - name: Add Forge metadata
+      copy:
+        dest: /etc/forge-image-metadata.json
+        content: |
+          {
+            "managed_by": "Forge",
+            "stig_profile": "{{ stig_profile }}",
+            "hardening_date": "{{ ansible_date_time.iso8601 }}",
+            "os_family": "{{ ansible_os_family }}",
+            "os_version": "{{ ansible_distribution_version }}",
+            "compliance": {
+              "stig_compliant": true,
+              "fips_enabled": true,
+              "audit_enabled": true
+            }
+          }
+        mode: '0644'
+        
+    - name: Clean up sensitive data
+      shell: |
+        # Clear logs
+        find /var/log -type f -exec truncate -s 0 {} \;
+        
+        # Clear bash history
+        rm -f /root/.bash_history
+        rm -f /home/*/.bash_history
+        
+        # Clear temporary files
+        rm -rf /tmp/*
+        rm -rf /var/tmp/*
+        
+        # Clear SSH host keys (regenerated on first boot)
+        rm -f /etc/ssh/ssh_host_*
+

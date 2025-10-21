@@ -1,0 +1,158 @@
+---
+# Forge Demo - OpenSCAP/SCC Compliance Scanning
+# This playbook demonstrates Forge's compliance scanning capabilities with automated remediation
+
+- name: Run OpenSCAP Compliance Scan with STIG Profile
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    # Compliance configuration
+    stig_profile: "xccdf_org.ssgproject.content_profile_stig"
+    benchmark_file: "/usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml"
+    scan_results_dir: "/var/log/forge/compliance"
+    scan_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    # Forge integration
+    forge_project_id: "{{ lookup('env', 'FORGE_PROJECT_ID') | default('demo-project') }}"
+    forge_task_id: "{{ lookup('env', 'FORGE_TASK_ID') | default('0') }}"
+    
+    # Remediation options
+    auto_remediate: false
+    generate_remediation_playbook: true
+    
+  tasks:
+    - name: Install OpenSCAP and SCAP Security Guide
+      dnf:
+        name:
+          - openscap-scanner
+          - scap-security-guide
+        state: present
+      
+    - name: Create compliance results directory
+      file:
+        path: "{{ scan_results_dir }}"
+        state: directory
+        mode: '0755'
+        
+    - name: List available STIG profiles
+      shell: |
+        oscap info {{ benchmark_file }} | grep "Profile:" | head -10
+      register: available_profiles
+      changed_when: false
+      
+    - name: Display available profiles
+      debug:
+        msg: "{{ available_profiles.stdout_lines }}"
+        
+    - name: Run OpenSCAP compliance scan
+      shell: |
+        oscap xccdf eval \
+          --profile {{ stig_profile }} \
+          --results {{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml \
+          --report {{ scan_results_dir }}/scan-report-{{ scan_timestamp }}.html \
+          --oval-results \
+          {{ benchmark_file }}
+      register: scan_result
+      failed_when: false  # Don't fail on compliance failures
+      changed_when: false
+      
+    - name: Parse scan results
+      xml:
+        path: "{{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml"
+        xpath: //x:rule-result
+        namespaces:
+          x: http://checklists.nist.gov/xccdf/1.2
+        content: attribute
+      register: scan_results_xml
+      
+    - name: Generate compliance summary
+      set_fact:
+        compliance_summary:
+          scan_id: "{{ scan_timestamp }}"
+          profile: "{{ stig_profile }}"
+          hostname: "{{ ansible_hostname }}"
+          scan_date: "{{ ansible_date_time.iso8601 }}"
+          forge_project: "{{ forge_project_id }}"
+          forge_task: "{{ forge_task_id }}"
+          results_file: "{{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml"
+          report_file: "{{ scan_results_dir }}/scan-report-{{ scan_timestamp }}.html"
+          
+    - name: Display compliance summary
+      debug:
+        var: compliance_summary
+        
+    - name: Generate remediation playbook (if enabled)
+      when: generate_remediation_playbook
+      block:
+        - name: Create remediation playbook
+          shell: |
+            oscap xccdf generate fix \
+              --profile {{ stig_profile }} \
+              --fix-type ansible \
+              {{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml \
+              > {{ scan_results_dir }}/remediation-playbook-{{ scan_timestamp }}.yml
+          register: remediation_generated
+          
+        - name: Display remediation playbook path
+          debug:
+            msg: "Remediation playbook generated: {{ scan_results_dir }}/remediation-playbook-{{ scan_timestamp }}.yml"
+            
+    - name: Apply automatic remediation (if enabled)
+      when: auto_remediate
+      block:
+        - name: Run remediation playbook
+          include: "{{ scan_results_dir }}/remediation-playbook-{{ scan_timestamp }}.yml"
+          
+        - name: Re-run compliance scan after remediation
+          shell: |
+            oscap xccdf eval \
+              --profile {{ stig_profile }} \
+              --results {{ scan_results_dir }}/scan-results-post-remediation-{{ scan_timestamp }}.xml \
+              --report {{ scan_results_dir }}/scan-report-post-remediation-{{ scan_timestamp }}.html \
+              {{ benchmark_file }}
+          register: post_remediation_scan
+          failed_when: false
+          changed_when: false
+          
+    - name: Export results for Forge Compliance Dashboard
+      copy:
+        content: |
+          {
+            "scan_id": "{{ scan_timestamp }}",
+            "hostname": "{{ ansible_hostname }}",
+            "profile": "{{ stig_profile }}",
+            "scan_date": "{{ ansible_date_time.iso8601 }}",
+            "forge_project_id": "{{ forge_project_id }}",
+            "forge_task_id": "{{ forge_task_id }}",
+            "results_xml": "{{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml",
+            "report_html": "{{ scan_results_dir }}/scan-report-{{ scan_timestamp }}.html",
+            "remediation_playbook": "{{ scan_results_dir }}/remediation-playbook-{{ scan_timestamp }}.yml"
+          }
+        dest: "{{ scan_results_dir }}/forge-export-{{ scan_timestamp }}.json"
+        mode: '0644'
+        
+    - name: Create CKL export for eMASS (DoD)
+      shell: |
+        oscap xccdf export-oval-variables \
+          --profile {{ stig_profile }} \
+          {{ benchmark_file }} > {{ scan_results_dir }}/variables-{{ scan_timestamp }}.xml
+      register: ckl_export
+      failed_when: false
+      
+    - name: Summary report
+      debug:
+        msg:
+          - "================================"
+          - "Compliance Scan Complete"
+          - "================================"
+          - "Profile: {{ stig_profile }}"
+          - "Host: {{ ansible_hostname }}"
+          - "Scan ID: {{ scan_timestamp }}"
+          - "Results: {{ scan_results_dir }}/scan-results-{{ scan_timestamp }}.xml"
+          - "Report: {{ scan_results_dir }}/scan-report-{{ scan_timestamp }}.html"
+          - "Remediation: {{ scan_results_dir }}/remediation-playbook-{{ scan_timestamp }}.yml"
+          - "Forge Export: {{ scan_results_dir }}/forge-export-{{ scan_timestamp }}.json"
+          - "================================"
+
